@@ -344,9 +344,9 @@ def agent():
     pass
 
 
-@agent.command("console")
-def agent_console():
-    """Interactive LLM agent for OpenSky Trino queries."""
+@agent.command("start")
+def agent_start():
+    """Start interactive LLM agent for OpenSky Trino queries."""
     import sys
 
     from rich.console import Console
@@ -578,7 +578,6 @@ def agent_config_setup_wizard():
             "requires_key": False,
             "key_url": None,
         },
-
         "groq": {
             "name": "Groq",
             "description": "Fast inference with open models",
@@ -733,7 +732,7 @@ def agent_config_setup_wizard():
             f"[bold green]✓ Configuration saved successfully![/bold green]\n\n"
             f"Config file: [dim]{config_path}[/dim]\n\n"
             f"You can now use the agent by running:\n"
-            f"[bold cyan]  ostk agent console[/bold cyan]",
+            f"[bold cyan]  ostk agent start[/bold cyan]",
             border_style="green",
             padding=(1, 2),
         )
@@ -801,9 +800,7 @@ def agent_config_set_key(provider):
 
 
 @config.command("set-provider")
-@click.argument(
-    "provider_name", type=click.Choice(["openai", "ollama", "groq"])
-)
+@click.argument("provider_name", type=click.Choice(["openai", "ollama", "groq"]))
 def agent_config_set_provider(provider_name):
     """Set the default LLM provider (for quick updates; use 'ostk agent config' for full setup)."""
     import configparser
@@ -912,7 +909,7 @@ def agent_config_show():
 
 @agent.command("clear-history")
 def agent_clear_history():
-    """Clear agent console command history."""
+    """Clear agent start command history."""
     history_path = get_agent_history_path()
     if history_path.exists():
         history_path.unlink()

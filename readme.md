@@ -21,7 +21,7 @@ ostk trajectory rebuild ...
 ostk trajectory history ...
 
 # download historical data via natural language
-ostk agent console
+ostk agent start
 ```
 
 or python API:
@@ -118,7 +118,7 @@ ostk trajectory history --start "2025-11-08 13:00:00" --stop "2025-11-08 15:00:0
 ostk agent config set-key
 
 # launch OSTK LLM agent 
-ostk agent console
+ostk agent start
 ```
 
 ![Trajectory Reconstruction Example](docs/figures/ostk_agent.png)

@@ -51,7 +51,7 @@ openai_api_key=sk-...yourkey...
 The recommended way to use the agent is through the interactive console:
 
 ```sh
-ostk agent console
+ostk agent start
 ```
 
 ### Console Features

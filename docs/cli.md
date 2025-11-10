@@ -142,7 +142,7 @@ ostk trajectory history --start "2025-11-08 12:00:00" --stop "2025-11-08 15:00:0
 Launch an interactive agent for natural language queries:
 
 ```sh
-ostk agent console
+ostk agent start
 ```
 
 **Example queries:**

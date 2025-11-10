@@ -195,8 +195,8 @@ class Agent:
         """
         Execute the history() query with the given parameters.
         """
-        # Remove None values
-        return self.trino.history(**params).sort_values(["icao24", "time"])
+        df = self.trino.history(**params)
+        return None if df is None else df.sort_values(["icao24", "time"])
 
     def save_result(
         self, df: pd.DataFrame, fmt: str = "csv", output: Optional[str] = None

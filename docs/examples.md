@@ -383,5 +383,5 @@ ostk trajectory rebuild 485A32 "2025-11-08 12:00:00" "2025-11-08 15:00:00" -o ou
 ostk trajectory history 485A32 "2025-11-08 12:00:00" "2025-11-08 15:00:00" --departure-airport EHAM
 
 # Use LLM agent
-ostk agent console
+ostk agent start
 ```
