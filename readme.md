@@ -10,6 +10,10 @@
 - **⚡ CLI Tools** - Full command-line interface for automation
 - **🐍 Python API** - Integrate directly into your scripts
 
+| Query Builder | AI Chat |
+|---------------|---------|
+| ![Query Builder](docs/figures/ostk_gui_query.png) | ![AI Chat](docs/figures/ostk_gui_chat.png) |
+
 ## 📥 Download
 
 Download the latest release for your platform:
