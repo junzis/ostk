@@ -14,12 +14,15 @@ jobs:
           - os: windows-latest
             artifact_name: OSTK-Windows
             asset_name: OSTK-Windows.zip
+            output: dist/OSTK.exe
           - os: macos-latest
             artifact_name: OSTK-macOS
             asset_name: OSTK-macOS.zip
+            output: dist/OSTK.app
           - os: ubuntu-latest
             artifact_name: OSTK-Linux
             asset_name: OSTK-Linux.tar.gz
+            output: dist/OSTK
 
     runs-on: ${{ matrix.os }}
 
@@ -38,11 +41,11 @@ jobs:
         run: uv sync --group dev
 
       - name: Build executable
-        run: uv run python scripts/pack_ostk.py
+        run: uv run pyinstaller OSTK.spec --noconfirm
 
       - name: Package (Windows)
         if: matrix.os == 'windows-latest'
-        run: Compress-Archive -Path dist/OSTK.exe -DestinationPath ${{ matrix.asset_name }}
+        run: Compress-Archive -Path ${{ matrix.output }} -DestinationPath ${{ matrix.asset_name }}
 
       - name: Package (macOS)
         if: matrix.os == 'macos-latest'

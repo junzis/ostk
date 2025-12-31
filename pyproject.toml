@@ -14,7 +14,7 @@ dependencies = [
     "ollama>=0.1.0",
     "openai>=1.0.0",
     "rich>=13.0.0",
-    "flet>=0.80.0",
+    "flet[desktop]>=0.80.0",
     "flet-cli>=0.80.0",
 ]
 

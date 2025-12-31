@@ -16,16 +16,19 @@ def _get_fonts_dir() -> Path:
     return Path("assets/fonts")
 
 
-def main(page: ft.Page) -> None:
-    """Main entry point for the Flet application."""
-    # Configure page
-    page.title = "OSTK - OpenSky ToolKit"
-    page.theme_mode = ft.ThemeMode.LIGHT
-    page.padding = 0
+def _before_main(page: ft.Page) -> None:
+    """Called before main to set window properties without flash."""
     page.window.width = 800
     page.window.height = 800
     page.window.min_width = 700
     page.window.min_height = 500
+
+
+def main(page: ft.Page) -> None:
+    """Main entry point for the Flet application."""
+    page.title = "OSTK - OpenSky ToolKit"
+    page.theme_mode = ft.ThemeMode.LIGHT
+    page.padding = 0
 
     # Register custom fonts (using static fonts for better rendering)
     fonts_dir = _get_fonts_dir()
@@ -99,7 +102,7 @@ def run_gui(native_mode: bool | None = None) -> None:
         native_mode: Ignored for Flet (always native). Kept for API compatibility.
     """
     print("Starting OSTK GUI (native window)...")
-    ft.run(main)
+    ft.run(main, before_main=_before_main)
 
 
 if __name__ == "__main__":

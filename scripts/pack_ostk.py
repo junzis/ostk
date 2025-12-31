@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-"""Package OSTK as a standalone executable using Flet pack (PyInstaller).
+"""Package OSTK as a standalone executable using PyInstaller.
 
 Usage:
     uv run python scripts/pack_ostk.py
 
 This creates a standalone executable in the dist/ directory.
-Uses PyInstaller for optimal compression and single-file output.
+Uses PyInstaller with exclusions for optimal bundle size.
 
 For cross-platform releases, use GitHub Actions (see .github/workflows/build-release.yml)
 """
@@ -24,61 +24,52 @@ def get_project_root() -> Path:
 
 
 def main():
-    """Build the OSTK executable using flet pack."""
+    """Build the OSTK executable using PyInstaller."""
     project_root = get_project_root()
     system = platform.system()
 
     print("=" * 60)
-    print("Building OSTK with Flet Pack (PyInstaller)")
+    print("Building OSTK with PyInstaller")
     print("=" * 60)
     print(f"Platform: {system} {platform.machine()}")
     print(f"Python: {sys.version.split()[0]}")
     print()
 
-    # Check flet CLI is available
-    flet_cmd = shutil.which("flet")
-    if not flet_cmd:
+    # Check pyinstaller is available
+    pyinstaller_cmd = shutil.which("pyinstaller")
+    if not pyinstaller_cmd:
         # Try in virtual environment
         if system == "Windows":
-            flet_cmd = project_root / ".venv" / "Scripts" / "flet.exe"
+            pyinstaller_cmd = project_root / ".venv" / "Scripts" / "pyinstaller.exe"
         else:
-            flet_cmd = project_root / ".venv" / "bin" / "flet"
+            pyinstaller_cmd = project_root / ".venv" / "bin" / "pyinstaller"
 
-        if not Path(flet_cmd).exists():
-            print("Error: flet CLI not found. Install with: uv add flet-cli")
+        if not Path(pyinstaller_cmd).exists():
+            print("Error: pyinstaller not found. Install with: uv add pyinstaller --group dev")
             sys.exit(1)
-        flet_cmd = str(flet_cmd)
+        pyinstaller_cmd = str(pyinstaller_cmd)
 
-    # Entry point
-    entry_point = project_root / "src" / "ostk" / "main.py"
+    # Spec file
+    spec_file = project_root / "OSTK.spec"
 
-    # Build command using flet pack
+    if not spec_file.exists():
+        print(f"Error: {spec_file} not found")
+        sys.exit(1)
+
+    # Build command
     command = [
-        flet_cmd,
-        "pack",
-        str(entry_point),
-        "--name", "OSTK",
-        "--add-data", f"{project_root / 'src' / 'ostk' / 'agent' / 'agent.md'}:ostk/agent",
-        "--add-data", f"{project_root / 'assets' / 'fonts'}:assets/fonts",
-        "-y",  # Non-interactive mode
+        pyinstaller_cmd,
+        str(spec_file),
+        "--noconfirm",  # Overwrite without asking
     ]
-
-    # Add icon if available
-    icon_dir = project_root / "assets" / "icons"
-    if system == "Windows" and (icon_dir / "ostk.ico").exists():
-        command.extend(["--icon", str(icon_dir / "ostk.ico")])
-    elif system == "Darwin" and (icon_dir / "ostk.icns").exists():
-        command.extend(["--icon", str(icon_dir / "ostk.icns")])
-    elif (icon_dir / "ostk.png").exists():
-        command.extend(["--icon", str(icon_dir / "ostk.png")])
 
     # Change to project root
     os.chdir(project_root)
 
-    print(f"Entry point: {entry_point}")
+    print(f"Spec file: {spec_file}")
     print()
 
-    # Run flet pack
+    # Run pyinstaller
     result = subprocess.run(command)
 
     if result.returncode == 0:
