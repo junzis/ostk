@@ -1,66 +1,53 @@
 # OSTK - Nifty OpenSky tools with good vibes
 
-**OSTK  (OpenSky ToolKit)** provides advanced trajectory reconstruction tools for OpenSky Network ADS-B data, through CLI or Python. It offers enhanced trajectory accuracy through improved CPR decoding.It also includes an LLM-powered agent for natural language queries.
+**OSTK (OpenSky ToolKit)** is a desktop application and Python library for working with OpenSky Network ADS-B data. It features an intuitive GUI for building queries, an LLM-powered chat assistant, and advanced trajectory reconstruction with enhanced CPR decoding.
 
-## Features
+## ✨ Features
 
-- Accurate trajectory reconstruction from raw ADS-B messages with enhanced CPR decoding
-- Outlier filtering for cleaner trajectories
-- LLM-powered agent for natural language OpenSky queries
-- Command-line interface for trajectory queries and configuration management
-- Built on pyopensky's Trino interface with caching support
+- **🖥️ Desktop GUI** - Visual query builder with real-time results
+- **🤖 AI Chat Assistant** - Natural language queries powered by LLM
+- **📡 Trajectory Reconstruction** - Enhanced accuracy through raw CPR decoding
+- **⚡ CLI Tools** - Full command-line interface for automation
+- **🐍 Python API** - Integrate directly into your scripts
 
+## 📥 Download
 
-All can be accessed though your terminal console:
+Download the latest release for your platform:
+
+| Platform | Download |
+|----------|----------|
+| Windows | [OSTK-Windows.zip](https://github.com/junzis/ostk/releases/latest) |
+| macOS | [OSTK-macOS.zip](https://github.com/junzis/ostk/releases/latest) |
+| Linux | [OSTK-Linux.tar.gz](https://github.com/junzis/ostk/releases/latest) |
+
+Just extract and run - no installation required!
+
+## 🚀 Quick Start
+
+### GUI Application
+
+Launch the GUI by running `ostk` without arguments:
 
 ```sh
-# get trajectory rebuild from raw ADS-B messages
-ostk trajectory rebuild ...
+ostk
+```
 
-# get historical trajectory data with various filters
-ostk trajectory history ...
+Or download the standalone app from the [releases page](https://github.com/junzis/ostk/releases).
 
-# download historical data via natural language
+### Command Line
+
+```sh
+# Rebuild trajectory from raw ADS-B messages
+ostk trajectory rebuild --icao24 485A32 --start "2025-11-08 12:00:00" --stop "2025-11-08 15:00:00"
+
+# Download historical trajectory data
+ostk trajectory history --start "2025-11-08 12:00:00" --stop "2025-11-08 15:00:00" --icao24 485A32
+
+# Start the LLM agent (CLI mode)
 ostk agent start
 ```
 
-or python API:
-
-```python
-from ostk import rebuild
-
-flight = rebuild(icao24, start, stop)
-```
-
-```python
-from ostk import Agent
-
-agent = Agent()
-params = agent.parse_query("...")
-flight = agent.execute_query(params)
-```
-
-
-## Installation and configure
-
-Install via pip:
-```sh
-pip install ostk
-```
-
-Configure OpenSky credentials (for pyopensky):
-
-```sh
-# set credentials
-ostk pyopensky config set
-
-# show config
-ostk pyopensky config show
-```
-
-## Quick Start
-
-### Rebuild Trajectory
+### Python API
 
 ```python
 from ostk import rebuild
@@ -73,77 +60,66 @@ df = rebuild(
 )
 ```
 
-Returns a pandas DataFrame with columns: `time`, `icao24`, `lat`, `lon`, `baroaltitude`, `velocity`, `heading`, `vertrate`
-
-### LLM Agent
-
 ```python
 from ostk import Agent
 
-# Initialize agent
+# Use the LLM agent
 agent = Agent()
-
-# Parse natural language query
 params = agent.parse_query(
-    "Download flights from Amsterdam Schiphol to London Heatharow on Nov 8, 2025 between 13:00 and 15:00"
+    "Flights from Amsterdam to London on Nov 8, 2025 between 13:00 and 15:00"
 )
-
-# Execute and get results
 df = agent.execute_query(params)
 ```
 
-### Command Line
+## 📦 Installation
 
-**Rebuild Trajectory**
-
-```sh
-# Rebuild trajectory from raw ADS-B messages
-ostk trajectory rebuild --icao24 485A32 --start "2025-11-08 12:00:00" --stop "2025-11-08 15:00:00" -o trajectory_rebuild.csv
-```
-
-**Download History Trajectory**
+### From PyPI
 
 ```sh
-# Download historical data with icao24 filter
-ostk trajectory history --start "2025-11-08 12:00:00" --stop "2025-11-08 15:00:00" --icao24 485A32 -o trajectory_history.csv
-
-# Download historical data with airport filters
-ostk trajectory history --start "2025-11-08 13:00:00" --stop "2025-11-08 15:00:00" --departure-airport EHAM --arrival-airport EGLL -o trajectory_history.csv
+pip install ostk
 ```
 
-**LLM Agent**
+### From Source
 
 ```sh
-# set OpenAI API key for LLM agent
-ostk agent config set-key
-
-# launch OSTK LLM agent 
-ostk agent start
+git clone https://github.com/junzis/ostk.git
+cd ostk
+pip install -e .
 ```
 
-![Trajectory Reconstruction Example](docs/figures/ostk_agent.png)
+## ⚙️ Configuration
 
+### OpenSky Credentials
 
-## Setup LLM Agent
-
-To use the LLM-powered agent, config your OpenAI API key:
+Configure your OpenSky Network credentials (required for data access):
 
 ```sh
-ostk agent config set-key
+ostk pyopensky config set
 ```
 
-The follow the instruction to input your OpenAI API key. The config file locations are:
+### LLM Agent Setup
+
+Configure your LLM provider for the AI assistant:
+
+```sh
+# Interactive setup wizard
+ostk agent config
+
+# Or set provider directly
+ostk agent config set-provider groq  # groq, openai, or ollama
+ostk agent config set-key --provider groq
+```
+
+Supported providers:
+- **Groq** - Fast inference with free tier (recommended)
+- **OpenAI** - GPT-4, GPT-3.5
+- **Ollama** - Local models, no API key needed
+
+Config file locations:
 - Linux/macOS: `~/.config/ostk/settings.conf`
 - Windows: `%LOCALAPPDATA%\ostk\settings.conf`
 
-## Documentation
-
-- **[CLI Reference](docs/cli.md)** - Detailed command-line usage
-- **[Python API](docs/api.md)** - Complete API documentation
-- **[Examples](docs/examples.md)** - Usage examples and comparisons
-- **[Agent Guide](docs/agent.md)** - LLM agent usage
-
-## How Does Trajectory Rebuild Work?
+## 🔧 How Trajectory Rebuild Works
 
 The `rebuild()` function reconstructs trajectories by:
 
@@ -161,20 +137,26 @@ The `rebuild()` function reconstructs trajectories by:
 | Speed | Slower (decoding overhead) | Faster (direct query) |
 | Filtering | icao24 + time only | Full filtering support |
 
-Use `history()` for faster queries with complex filtering, however with many outliers. Use `rebuild()` for maximum accuracy and fewer outliers. 
+Use `history()` for faster queries with complex filtering. Use `rebuild()` for maximum accuracy and fewer outliers.
 
 ![Trajectory Reconstruction Example](docs/figures/history_vs_rebuild.png)
 
+## 📚 Documentation
 
-## Authors
+- **[CLI Reference](docs/cli.md)** - Detailed command-line usage
+- **[Python API](docs/api.md)** - Complete API documentation
+- **[Examples](docs/examples.md)** - Usage examples and comparisons
+- **[Agent Guide](docs/agent.md)** - LLM agent usage
+
+## 👤 Authors
 
 - Junzi Sun (j.sun-1@tudelft.nl)
 
-## Related Projects
+## 🔗 Related Projects
 
 - [pyopensky](https://github.com/open-aviation/pyopensky/) - Python interface for OpenSky Network data
 - [pyModeS](https://github.com/junzis/pyModeS) - ADS-B and Mode S message decoder
 
-## License
+## 📄 License
 
 MIT License
