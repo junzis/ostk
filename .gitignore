@@ -1,3 +1,11 @@
+# Data files in root folder
+/*.csv
+/*.parquet
+
+# Logs
+*.log
+
+
 # Python-generated files
 __pycache__/
 *.py[oc]
@@ -5,6 +13,49 @@ build/
 dist/
 wheels/
 *.egg-info
+*.egg
+*.whl
+.eggs/
+MANIFEST
 
 # Virtual environments
-.venv
+.venv/
+venv/
+ENV/
+env/
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# Type checking
+.mypy_cache/
+.pytype/
+
+# Linting
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.local

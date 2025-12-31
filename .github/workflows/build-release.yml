@@ -1,0 +1,77 @@
+name: Build Release Binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: OSTK-Windows
+            asset_name: OSTK-Windows.zip
+          - os: macos-latest
+            artifact_name: OSTK-macOS
+            asset_name: OSTK-macOS.zip
+          - os: ubuntu-latest
+            artifact_name: OSTK-Linux
+            asset_name: OSTK-Linux.tar.gz
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Build executable
+        run: uv run python scripts/pack_ostk.py
+
+      - name: Package (Windows)
+        if: matrix.os == 'windows-latest'
+        run: Compress-Archive -Path dist/OSTK.exe -DestinationPath ${{ matrix.asset_name }}
+
+      - name: Package (macOS)
+        if: matrix.os == 'macos-latest'
+        run: cd dist && zip -r ../${{ matrix.asset_name }} OSTK.app
+
+      - name: Package (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: cd dist && tar -czvf ../${{ matrix.asset_name }} OSTK
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.asset_name }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            OSTK-Windows/OSTK-Windows.zip
+            OSTK-macOS/OSTK-macOS.zip
+            OSTK-Linux/OSTK-Linux.tar.gz
+          generate_release_notes: true

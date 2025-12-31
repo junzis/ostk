@@ -14,6 +14,8 @@ dependencies = [
     "ollama>=0.1.0",
     "openai>=1.0.0",
     "rich>=13.0.0",
+    "flet>=0.80.0",
+    "flet-cli>=0.80.0",
 ]
 
 [tool.uv]
@@ -23,7 +25,4 @@ package = true
 ostk = "ostk.cli:cli"
 
 [dependency-groups]
-dev = [
-    "ipykernel>=7.1.0",
-    "matplotlib>=3.10.7",
-]
+dev = ["ipykernel>=7.1.0", "pyinstaller>=6.0.0"]

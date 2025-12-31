@@ -37,16 +37,70 @@ def get_agent_history_path() -> Path:
     return get_agent_config_dir() / "agent_history"
 
 
-@click.group()
-def cli():
-    """OSTK (OpenSky ToolKit) - Nifty tools for opensky with good vibes."""
+def fetch_groq_models(api_key: str, tool_use_only: bool = True) -> list[dict]:
+    """
+    Fetch available models from Groq API.
 
-    import click
+    Args:
+        api_key: Groq API key
+        tool_use_only: If True, filter to only models supporting tool calling
 
-    ctx = click.get_current_context()
+    Returns:
+        List of model dicts with 'id' and 'owned_by' fields
+    """
+    import httpx
+
+    from ostk.agent.providers.groq_models import EXCLUDE_PATTERNS, TOOL_USE_MODELS
+
+    try:
+        response = httpx.get(
+            "https://api.groq.com/openai/v1/models",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=10,
+        )
+        response.raise_for_status()
+        data = response.json()
+        models = data.get("data", [])
+
+        if tool_use_only:
+            # Filter to tool-use models and exclude non-text models
+            tool_use_set = set(TOOL_USE_MODELS)
+            filtered = []
+            for m in models:
+                model_id = m.get("id", "")
+                # Skip if matches exclude patterns
+                if any(pattern in model_id.lower() for pattern in EXCLUDE_PATTERNS):
+                    continue
+                # Include if in known tool-use list
+                if model_id in tool_use_set:
+                    filtered.append(m)
+            return filtered
+
+        return models
+    except Exception:
+        return []
+
+
+@click.group(invoke_without_command=True)
+@click.option(
+    "--no-gui",
+    is_flag=True,
+    help="Show CLI help instead of launching GUI",
+)
+@click.pass_context
+def cli(ctx, no_gui: bool):
+    """OSTK (OpenSky ToolKit) - Nifty tools for opensky with good vibes.
+
+    Run without arguments to launch the GUI, or use subcommands for CLI mode.
+    """
     if ctx.invoked_subcommand is None:
-        click.echo(ctx.get_help())
-        ctx.exit()
+        if no_gui:
+            click.echo(ctx.get_help())
+        else:
+            # Launch native GUI
+            from ostk.gui import run_gui
+
+            run_gui()
 
 
 @cli.group()
@@ -560,8 +614,16 @@ def agent_config_setup_wizard():
     console.print(Panel(welcome, border_style="cyan", padding=(1, 2)))
     console.print()
 
-    # Provider information
+    # Provider information (Groq first as recommended option)
     provider_info = {
+        "groq": {
+            "name": "Groq (with free APIs)",
+            "description": "Fast inference with open models",
+            "models": None,  # Fetched dynamically from API
+            "default_model": None,  # Set from groq_models.py
+            "requires_key": True,
+            "key_url": "https://console.groq.com",
+        },
         "openai": {
             "name": "OpenAI",
             "description": "Official OpenAI API (GPT-4, GPT-3.5, etc.)",
@@ -578,19 +640,13 @@ def agent_config_setup_wizard():
             "requires_key": False,
             "key_url": None,
         },
-        "groq": {
-            "name": "Groq",
-            "description": "Fast inference with open models",
-            "models": [
-                "llama-3.3-70b-versatile",
-                "llama-3.1-70b-versatile",
-                "mixtral-8x7b-32768",
-            ],
-            "default_model": "llama-3.3-70b-versatile",
-            "requires_key": True,
-            "key_url": "https://console.groq.com",
-        },
     }
+
+    # Load Groq defaults from config file
+    from ostk.agent.providers.groq_models import DEFAULT_MODEL, TOOL_USE_MODELS
+
+    provider_info["groq"]["models"] = TOOL_USE_MODELS
+    provider_info["groq"]["default_model"] = DEFAULT_MODEL
 
     # Step 1: Choose provider
     console.print("[bold yellow]Step 1:[/bold yellow] Choose your LLM provider")
@@ -605,7 +661,7 @@ def agent_config_setup_wizard():
         "[cyan]Select provider[/cyan]", choices=["1", "2", "3"], default="1"
     )
 
-    provider_map = {"1": "openai", "2": "ollama", "3": "groq"}
+    provider_map = {"1": "groq", "2": "openai", "3": "ollama"}
 
     selected_provider = provider_map[provider_choice]
     provider_data = provider_info[selected_provider]
@@ -614,29 +670,128 @@ def agent_config_setup_wizard():
     console.print(f"✓ Selected: [bold green]{provider_data['name']}[/bold green]")
     console.print()
 
-    # Step 2: Choose model
-    console.print(
-        f"[bold yellow]Step 2:[/bold yellow] Choose a model for {provider_data['name']}"
-    )
-    console.print()
-    console.print(
-        f"  Recommended models: [dim]{', '.join(provider_data['models'])}[/dim]"
-    )
-    console.print()
-
-    model = Prompt.ask(
-        "[cyan]Enter model name[/cyan]", default=provider_data["default_model"]
-    )
-
-    console.print()
-    console.print(f"✓ Model: [bold green]{model}[/bold green]")
-    console.print()
-
-    # Step 3: API key (if needed)
+    # Initialize variables
     api_key = None
     base_url = None
+    model = None
 
-    if selected_provider == "ollama":
+    # For Groq: ask API key first, then fetch models
+    if selected_provider == "groq":
+        # Step 2: API key for Groq
+        console.print("[bold yellow]Step 2:[/bold yellow] Enter Groq API key")
+        console.print()
+        console.print(
+            f"  Get your API key from: [cyan]{provider_data['key_url']}[/cyan]"
+        )
+        console.print()
+
+        api_key = pt_prompt("Groq API key: ", is_password=True)
+
+        if not api_key:
+            console.print()
+            console.print("[red]Error: API key is required for Groq.[/red]")
+            console.print()
+            return
+
+        console.print()
+        console.print("✓ API key saved (hidden for security)")
+        console.print()
+
+        # Step 3: Fetch and select model
+        console.print("[bold yellow]Step 3:[/bold yellow] Choose a Groq model")
+        console.print()
+        console.print("  [dim]Fetching models with tool calling support...[/dim]")
+
+        groq_models = fetch_groq_models(api_key, tool_use_only=True)
+
+        if groq_models:
+            # Sort models: default first, then alphabetically
+            default_model = provider_data["default_model"]
+            all_model_ids = [m["id"] for m in groq_models]
+            other_models = sorted([m for m in all_model_ids if m != default_model])
+
+            # Put default model first if it exists in the list
+            if default_model in all_model_ids:
+                model_ids = [default_model] + other_models
+            else:
+                model_ids = other_models
+
+            console.print()
+            console.print(
+                f"  [green]Found {len(model_ids)} models with tool calling support:[/green]"
+            )
+            console.print()
+
+            # Display models in a numbered list
+            for idx, model_id in enumerate(model_ids, 1):
+                if model_id == default_model:
+                    console.print(
+                        f"    [cyan]{idx:2}.[/cyan] {model_id} [dim](default)[/dim]"
+                    )
+                else:
+                    console.print(f"    [cyan]{idx:2}.[/cyan] {model_id}")
+
+            console.print()
+            console.print(
+                f"  [dim]Or enter a custom model name not in the list.[/dim]"
+            )
+            console.print()
+
+            model_input = Prompt.ask(
+                "[cyan]Enter model number or name[/cyan]",
+                default="1",
+            )
+
+            # Check if input is a number (model selection)
+            if model_input.isdigit():
+                model_idx = int(model_input)
+                if 1 <= model_idx <= len(model_ids):
+                    model = model_ids[model_idx - 1]
+                else:
+                    console.print(
+                        f"[yellow]Invalid number, using default model.[/yellow]"
+                    )
+                    model = provider_data["default_model"]
+            else:
+                model = model_input
+        else:
+            console.print()
+            console.print(
+                "  [yellow]Could not fetch models. Using recommended models.[/yellow]"
+            )
+            console.print(
+                f"  Recommended: [dim]{', '.join(provider_data['models'])}[/dim]"
+            )
+            console.print()
+            model = Prompt.ask(
+                "[cyan]Enter model name[/cyan]",
+                default=provider_data["default_model"],
+            )
+
+        console.print()
+        console.print(f"✓ Model: [bold green]{model}[/bold green]")
+        console.print()
+
+    elif selected_provider == "ollama":
+        # Step 2: Choose model for Ollama
+        console.print(
+            f"[bold yellow]Step 2:[/bold yellow] Choose a model for {provider_data['name']}"
+        )
+        console.print()
+        console.print(
+            f"  Recommended models: [dim]{', '.join(provider_data['models'])}[/dim]"
+        )
+        console.print()
+
+        model = Prompt.ask(
+            "[cyan]Enter model name[/cyan]", default=provider_data["default_model"]
+        )
+
+        console.print()
+        console.print(f"✓ Model: [bold green]{model}[/bold green]")
+        console.print()
+
+        # Step 3: Configure Ollama base URL
         console.print("[bold yellow]Step 3:[/bold yellow] Configure Ollama")
         console.print()
         console.print(
@@ -652,25 +807,50 @@ def agent_config_setup_wizard():
         console.print(f"✓ Base URL: [bold green]{base_url}[/bold green]")
         console.print()
 
-    elif provider_data["requires_key"]:
-        console.print(f"[bold yellow]Step 3:[/bold yellow] Enter API key")
+    else:
+        # OpenAI and other providers: model first, then API key
+        # Step 2: Choose model
+        console.print(
+            f"[bold yellow]Step 2:[/bold yellow] Choose a model for {provider_data['name']}"
+        )
         console.print()
         console.print(
-            f"  Get your API key from: [cyan]{provider_data['key_url']}[/cyan]"
+            f"  Recommended models: [dim]{', '.join(provider_data['models'])}[/dim]"
         )
         console.print()
 
-        api_key = pt_prompt(f"{provider_data['name']} API key: ", is_password=True)
-
-        if not api_key:
-            console.print()
-            console.print("[red]Error: API key is required for this provider.[/red]")
-            console.print()
-            return
+        model = Prompt.ask(
+            "[cyan]Enter model name[/cyan]", default=provider_data["default_model"]
+        )
 
         console.print()
-        console.print(f"✓ API key saved (hidden for security)")
+        console.print(f"✓ Model: [bold green]{model}[/bold green]")
         console.print()
+
+        # Step 3: API key
+        if provider_data["requires_key"]:
+            console.print("[bold yellow]Step 3:[/bold yellow] Enter API key")
+            console.print()
+            console.print(
+                f"  Get your API key from: [cyan]{provider_data['key_url']}[/cyan]"
+            )
+            console.print()
+
+            api_key = pt_prompt(
+                f"{provider_data['name']} API key: ", is_password=True
+            )
+
+            if not api_key:
+                console.print()
+                console.print(
+                    "[red]Error: API key is required for this provider.[/red]"
+                )
+                console.print()
+                return
+
+            console.print()
+            console.print("✓ API key saved (hidden for security)")
+            console.print()
 
     # Step 4: Confirm and save
     console.print("[bold yellow]Step 4:[/bold yellow] Review configuration")
