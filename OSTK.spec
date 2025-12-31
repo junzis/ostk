@@ -4,7 +4,17 @@
 Build with: uv run pyinstaller OSTK.spec
 """
 
+import sys
 from pathlib import Path
+
+# Platform-specific icon
+project_root = Path(SPECPATH)
+if sys.platform == 'win32':
+    ICON = str(project_root / 'assets' / 'icons' / 'ostk.ico')
+elif sys.platform == 'darwin':
+    ICON = str(project_root / 'assets' / 'icons' / 'ostk.png')  # Will be converted to icns
+else:
+    ICON = str(project_root / 'assets' / 'icons' / 'ostk.png')
 
 # Modules to exclude (not needed for desktop GUI)
 EXCLUDES = [
@@ -28,8 +38,6 @@ EXCLUDES = [
     "numpy.f2py",
 ]
 
-project_root = Path(SPECPATH)
-
 a = Analysis(
     [str(project_root / 'src' / 'ostk' / 'main.py')],
     pathex=[str(project_root / 'src')],
@@ -37,6 +45,7 @@ a = Analysis(
     datas=[
         (str(project_root / 'src' / 'ostk' / 'agent' / 'agent.md'), 'ostk/agent'),
         (str(project_root / 'assets' / 'fonts'), 'assets/fonts'),
+        (str(project_root / 'assets' / 'icons'), 'assets/icons'),
     ],
     hiddenimports=[
         'flet',
@@ -59,6 +68,7 @@ exe = EXE(
     a.datas,
     [],
     name='OSTK',
+    icon=ICON,
     debug=False,
     bootloader_ignore_signals=False,
     strip=True,  # Strip debug symbols

@@ -7,13 +7,26 @@ import flet as ft
 from .state import AppState
 
 
+def _get_assets_dir() -> Path:
+    """Get the assets directory path."""
+    module_dir = Path(__file__).parent.parent.parent.parent
+    assets_dir = module_dir / "assets"
+    if assets_dir.exists():
+        return assets_dir
+    return Path("assets")
+
+
 def _get_fonts_dir() -> Path:
     """Get the fonts directory path."""
-    module_dir = Path(__file__).parent.parent.parent.parent
-    fonts_dir = module_dir / "assets" / "fonts"
-    if fonts_dir.exists():
-        return fonts_dir
-    return Path("assets/fonts")
+    return _get_assets_dir() / "fonts"
+
+
+def _get_icon_path() -> str | None:
+    """Get the app icon path."""
+    icon_path = _get_assets_dir() / "icons" / "ostk.png"
+    if icon_path.exists():
+        return str(icon_path)
+    return None
 
 
 def _before_main(page: ft.Page) -> None:
@@ -22,6 +35,11 @@ def _before_main(page: ft.Page) -> None:
     page.window.height = 800
     page.window.min_width = 700
     page.window.min_height = 500
+
+    # Set window icon
+    icon_path = _get_icon_path()
+    if icon_path:
+        page.window.icon = icon_path
 
 
 def main(page: ft.Page) -> None:
