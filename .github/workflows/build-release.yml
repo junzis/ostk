@@ -26,7 +26,7 @@ jobs:
             artifact_name: ostk-macos-intel
             asset_name: ostk-macos-intel
             output: dist/OSTK
-          - os: ubuntu-20.04
+          - os: ubuntu-24.04
             artifact_name: ostk-linux
             asset_name: ostk-linux.AppImage
             output: dist/OSTK
