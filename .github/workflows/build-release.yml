@@ -18,7 +18,7 @@ jobs:
           - os: macos-latest
             artifact_name: OSTK-macOS
             asset_name: OSTK-macOS.zip
-            output: dist/OSTK.app
+            output: dist/OSTK
           - os: ubuntu-latest
             artifact_name: OSTK-Linux
             asset_name: OSTK-Linux.tar.gz
@@ -49,7 +49,7 @@ jobs:
 
       - name: Package (macOS)
         if: matrix.os == 'macos-latest'
-        run: cd dist && zip -r ../${{ matrix.asset_name }} OSTK.app
+        run: cd dist && zip -r ../${{ matrix.asset_name }} OSTK
 
       - name: Package (Linux)
         if: matrix.os == 'ubuntu-latest'
