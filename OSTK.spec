@@ -115,8 +115,8 @@ else:
         icon=ICON,
         debug=False,
         bootloader_ignore_signals=False,
-        strip=True,
-        upx=True,
+        strip=False if sys.platform == 'win32' else True,  # Don't strip on Windows
+        upx=False,  # UPX causes "invalid access to memory" errors on Windows
         upx_exclude=[],
         runtime_tmpdir=None,
         console=False,
