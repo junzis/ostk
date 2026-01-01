@@ -20,12 +20,14 @@ jobs:
             output: dist/OSTK.exe
           - os: macos-15
             artifact_name: ostk-macos-apple-silicon
-            asset_name: ostk-macos-apple-silicon
-            output: dist/OSTK
+            asset_name: ostk-macos-apple-silicon.zip
+            output: dist/OSTK.app
+            macos_app: true
           - os: macos-15-intel
             artifact_name: ostk-macos-intel
-            asset_name: ostk-macos-intel
-            output: dist/OSTK
+            asset_name: ostk-macos-intel.zip
+            output: dist/OSTK.app
+            macos_app: true
           - os: ubuntu-24.04
             artifact_name: ostk-linux
             asset_name: ostk-linux.AppImage
@@ -57,9 +59,11 @@ jobs:
       - name: Build executable
         run: uv run pyinstaller OSTK.spec --noconfirm
 
-      - name: Sign executable (macOS)
-        if: startsWith(matrix.os, 'macos')
-        run: codesign --force --deep --sign - dist/OSTK
+      - name: Sign and package app (macOS)
+        if: matrix.macos_app
+        run: |
+          codesign --force --deep --sign - dist/OSTK.app
+          cd dist && zip -r ../ostk-macos-temp.zip OSTK.app
 
       - name: Create AppImage (Linux)
         if: matrix.appimage
@@ -99,9 +103,14 @@ jobs:
           ./appimagetool --appimage-extract
           ARCH=$(uname -m) ./squashfs-root/AppRun AppDir ${{ matrix.asset_name }}
 
-      - name: Rename output (non-AppImage)
-        if: ${{ !matrix.appimage }}
+      - name: Rename output
+        if: ${{ !matrix.appimage && !matrix.macos_app }}
         run: mv ${{ matrix.output }} ${{ matrix.asset_name }}
+        shell: bash
+
+      - name: Rename macOS zip
+        if: matrix.macos_app
+        run: mv ostk-macos-temp.zip ${{ matrix.asset_name }}
         shell: bash
 
       - name: Upload artifact
@@ -124,7 +133,7 @@ jobs:
         with:
           files: |
             ostk-windows/ostk-windows.exe
-            ostk-macos-apple-silicon/ostk-macos-apple-silicon
-            ostk-macos-intel/ostk-macos-intel
+            ostk-macos-apple-silicon/ostk-macos-apple-silicon.zip
+            ostk-macos-intel/ostk-macos-intel.zip
             ostk-linux/ostk-linux.AppImage
           generate_release_notes: true

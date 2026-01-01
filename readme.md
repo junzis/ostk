@@ -43,17 +43,18 @@ Alternatively, download a standalone binary (no Python required):
 | Platform | Download |
 |----------|----------|
 | Windows | [ostk-windows.exe](https://github.com/junzis/ostk/releases/latest) |
-| macOS (Apple Silicon) | [ostk-macos-apple-silicon](https://github.com/junzis/ostk/releases/latest) |
-| macOS (Intel) | [ostk-macos-intel](https://github.com/junzis/ostk/releases/latest) |
+| macOS (Apple Silicon) | [ostk-macos-apple-silicon.zip](https://github.com/junzis/ostk/releases/latest) |
+| macOS (Intel) | [ostk-macos-intel.zip](https://github.com/junzis/ostk/releases/latest) |
 | Linux | [ostk-linux.AppImage](https://github.com/junzis/ostk/releases/latest) |
 
 <details>
 <summary>Platform-specific instructions</summary>
 
-**macOS**: If you see a security warning, right-click the file and select "Open", or run:
+**macOS**: Unzip the download, then if you see a security warning, right-click OSTK.app and select "Open", or run:
 ```sh
-xattr -cr ostk-macos-apple-silicon  # or ostk-macos-intel
-chmod +x ostk-macos-apple-silicon
+unzip ostk-macos-apple-silicon.zip  # or ostk-macos-intel.zip
+xattr -cr OSTK.app
+open OSTK.app
 ```
 
 **Linux**: Make the AppImage executable and run:

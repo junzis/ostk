@@ -65,24 +65,64 @@ a.binaries = [b for b in a.binaries if not any(excl in b[0] for excl in EXCLUDE_
 
 pyz = PYZ(a.pure)
 
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.datas,
-    [],
-    name='OSTK',
-    icon=ICON,
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=True,  # Strip debug symbols
-    upx=True,    # Compress with UPX
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=False,  # No console window
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-)
+if sys.platform == 'darwin':
+    # macOS: Use onedir mode with .app bundle for instant startup
+    exe = EXE(
+        pyz,
+        a.scripts,
+        [],
+        exclude_binaries=True,
+        name='OSTK',
+        icon=ICON,
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=True,
+        upx=False,  # UPX not needed for onedir
+        console=False,
+        disable_windowed_traceback=False,
+        argv_emulation=False,
+        target_arch=None,
+        codesign_identity=None,
+        entitlements_file=None,
+    )
+    coll = COLLECT(
+        exe,
+        a.binaries,
+        a.datas,
+        strip=True,
+        upx=False,
+        name='OSTK',
+    )
+    app = BUNDLE(
+        coll,
+        name='OSTK.app',
+        icon=ICON,
+        bundle_identifier='io.github.junzis.ostk',
+        info_plist={
+            'CFBundleShortVersionString': '0.1.0',
+            'NSHighResolutionCapable': True,
+        },
+    )
+else:
+    # Windows/Linux: Single file executable
+    exe = EXE(
+        pyz,
+        a.scripts,
+        a.binaries,
+        a.datas,
+        [],
+        name='OSTK',
+        icon=ICON,
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=True,
+        upx=True,
+        upx_exclude=[],
+        runtime_tmpdir=None,
+        console=False,
+        disable_windowed_traceback=False,
+        argv_emulation=False,
+        target_arch=None,
+        codesign_identity=None,
+        entitlements_file=None,
+    )
