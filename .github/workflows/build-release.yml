@@ -56,6 +56,10 @@ jobs:
           # Avoid manylinux wheels that have patchelf compatibility issues
           uv pip install --reinstall --no-binary numpy numpy
 
+      - name: Install Pillow for icon conversion (macOS only)
+        if: matrix.macos_app
+        run: uv pip install pillow
+
       - name: Build executable
         run: uv run pyinstaller OSTK.spec --noconfirm
 
