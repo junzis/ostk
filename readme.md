@@ -14,17 +14,55 @@
 |---------------|---------|
 | ![Query Builder](docs/figures/ostk_gui_query.png) | ![AI Chat](docs/figures/ostk_gui_chat.png) |
 
-## 📥 Download
+## 📦 Installation
 
-Download the latest release for your platform:
+Run directly with [uv](https://docs.astral.sh/uv/):
+
+```sh
+uv run ostk
+```
+
+Or install via pip:
+
+```sh
+pip install ostk
+ostk
+```
+
+Or with [pipx](https://pipx.pypa.io/) for isolated installation:
+
+```sh
+pipx install ostk
+ostk
+```
+
+### 📥 Standalone Downloads
+
+Alternatively, download a standalone binary (no Python required):
 
 | Platform | Download |
 |----------|----------|
-| Windows | [OSTK-Windows.zip](https://github.com/junzis/ostk/releases/latest) |
-| macOS | [OSTK-macOS.zip](https://github.com/junzis/ostk/releases/latest) |
-| Linux | [OSTK-Linux.tar.gz](https://github.com/junzis/ostk/releases/latest) |
+| Windows | [ostk-windows.exe](https://github.com/junzis/ostk/releases/latest) |
+| macOS (Apple Silicon) | [ostk-macos-apple-silicon](https://github.com/junzis/ostk/releases/latest) |
+| macOS (Intel) | [ostk-macos-intel](https://github.com/junzis/ostk/releases/latest) |
+| Linux | [ostk-linux.AppImage](https://github.com/junzis/ostk/releases/latest) |
 
-Just extract and run - no installation required!
+<details>
+<summary>Platform-specific instructions</summary>
+
+**macOS**: If you see a security warning, right-click the file and select "Open", or run:
+```sh
+xattr -cr ostk-macos-apple-silicon  # or ostk-macos-intel
+chmod +x ostk-macos-apple-silicon
+```
+
+**Linux**: Make the AppImage executable and run:
+```sh
+chmod +x ostk-linux.AppImage
+./ostk-linux.AppImage
+```
+
+</details>
 
 ## 🚀 Quick Start
 
@@ -73,22 +111,6 @@ params = agent.parse_query(
     "Flights from Amsterdam to London on Nov 8, 2025 between 13:00 and 15:00"
 )
 df = agent.execute_query(params)
-```
-
-## 📦 Installation
-
-### From PyPI
-
-```sh
-pip install ostk
-```
-
-### From Source
-
-```sh
-git clone https://github.com/junzis/ostk.git
-cd ostk
-pip install -e .
 ```
 
 ## ⚙️ Configuration

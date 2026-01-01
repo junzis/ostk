@@ -15,17 +15,22 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            artifact_name: OSTK-Windows
-            asset_name: OSTK-Windows.zip
+            artifact_name: ostk-windows
+            asset_name: ostk-windows.exe
             output: dist/OSTK.exe
-          - os: macos-latest
-            artifact_name: OSTK-macOS
-            asset_name: OSTK-macOS.zip
+          - os: macos-14
+            artifact_name: ostk-macos-apple-silicon
+            asset_name: ostk-macos-apple-silicon
             output: dist/OSTK
-          - os: ubuntu-latest
-            artifact_name: OSTK-Linux
-            asset_name: OSTK-Linux.tar.gz
+          - os: macos-13
+            artifact_name: ostk-macos-intel
+            asset_name: ostk-macos-intel
             output: dist/OSTK
+          - os: ubuntu-22.04
+            artifact_name: ostk-linux
+            asset_name: ostk-linux.AppImage
+            output: dist/OSTK
+            appimage: true
 
     runs-on: ${{ matrix.os }}
 
@@ -46,17 +51,51 @@ jobs:
       - name: Build executable
         run: uv run pyinstaller OSTK.spec --noconfirm
 
-      - name: Package (Windows)
-        if: matrix.os == 'windows-latest'
-        run: Compress-Archive -Path ${{ matrix.output }} -DestinationPath ${{ matrix.asset_name }}
+      - name: Sign executable (macOS)
+        if: startsWith(matrix.os, 'macos')
+        run: codesign --force --deep --sign - dist/OSTK
 
-      - name: Package (macOS)
-        if: matrix.os == 'macos-latest'
-        run: cd dist && zip -r ../${{ matrix.asset_name }} OSTK
+      - name: Create AppImage (Linux)
+        if: matrix.appimage
+        run: |
+          # Create AppDir structure
+          mkdir -p AppDir/usr/bin
+          cp dist/OSTK AppDir/usr/bin/ostk
+          chmod +x AppDir/usr/bin/ostk
 
-      - name: Package (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: cd dist && tar -czvf ../${{ matrix.asset_name }} OSTK
+          # Copy icon
+          mkdir -p AppDir/usr/share/icons/hicolor/512x512/apps
+          cp assets/icons/ostk.png AppDir/usr/share/icons/hicolor/512x512/apps/ostk.png
+          cp assets/icons/ostk.png AppDir/ostk.png
+
+          # Create desktop file
+          cat > AppDir/ostk.desktop << 'EOF'
+          [Desktop Entry]
+          Name=OSTK
+          Exec=ostk
+          Icon=ostk
+          Type=Application
+          Categories=Science;
+          EOF
+
+          # Create AppRun
+          cat > AppDir/AppRun << 'EOF'
+          #!/bin/bash
+          SELF=$(readlink -f "$0")
+          HERE=${SELF%/*}
+          exec "${HERE}/usr/bin/ostk" "$@"
+          EOF
+          chmod +x AppDir/AppRun
+
+          # Download and run appimagetool
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
+          chmod +x appimagetool
+          ARCH=$(uname -m) ./appimagetool AppDir ${{ matrix.asset_name }}
+
+      - name: Rename output (non-AppImage)
+        if: ${{ !matrix.appimage }}
+        run: mv ${{ matrix.output }} ${{ matrix.asset_name }}
+        shell: bash
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -77,7 +116,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            OSTK-Windows/OSTK-Windows.zip
-            OSTK-macOS/OSTK-macOS.zip
-            OSTK-Linux/OSTK-Linux.tar.gz
+            ostk-windows/ostk-windows.exe
+            ostk-macos-apple-silicon/ostk-macos-apple-silicon
+            ostk-macos-intel/ostk-macos-intel
+            ostk-linux/ostk-linux.AppImage
           generate_release_notes: true

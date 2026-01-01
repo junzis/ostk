@@ -59,6 +59,10 @@ a = Analysis(
     optimize=0,
 )
 
+# Exclude system SSL libraries that cause version conflicts on Linux
+EXCLUDE_BINARIES = ['libssl.so', 'libcrypto.so']
+a.binaries = [b for b in a.binaries if not any(excl in b[0] for excl in EXCLUDE_BINARIES)]
+
 pyz = PYZ(a.pure)
 
 exe = EXE(
