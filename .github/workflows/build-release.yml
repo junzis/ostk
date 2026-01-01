@@ -26,7 +26,7 @@ jobs:
             artifact_name: ostk-macos-intel
             asset_name: ostk-macos-intel
             output: dist/OSTK
-          - os: ubuntu-22.04
+          - os: ubuntu-20.04
             artifact_name: ostk-linux
             asset_name: ostk-linux.AppImage
             output: dist/OSTK
@@ -47,6 +47,12 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --group dev
+
+      - name: Reinstall numpy from source (Linux only)
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          # Avoid manylinux wheels that have patchelf compatibility issues
+          uv pip install --reinstall --no-binary numpy numpy
 
       - name: Build executable
         run: uv run pyinstaller OSTK.spec --noconfirm
