@@ -18,11 +18,11 @@ jobs:
             artifact_name: ostk-windows
             asset_name: ostk-windows.exe
             output: dist/OSTK.exe
-          - os: macos-14
+          - os: macos-15
             artifact_name: ostk-macos-apple-silicon
             asset_name: ostk-macos-apple-silicon
             output: dist/OSTK
-          - os: macos-13
+          - os: macos-15-intel
             artifact_name: ostk-macos-intel
             asset_name: ostk-macos-intel
             output: dist/OSTK
@@ -87,10 +87,11 @@ jobs:
           EOF
           chmod +x AppDir/AppRun
 
-          # Download and run appimagetool
+          # Download appimagetool and extract it (FUSE not available in CI)
           wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
           chmod +x appimagetool
-          ARCH=$(uname -m) ./appimagetool AppDir ${{ matrix.asset_name }}
+          ./appimagetool --appimage-extract
+          ARCH=$(uname -m) ./squashfs-root/AppRun AppDir ${{ matrix.asset_name }}
 
       - name: Rename output (non-AppImage)
         if: ${{ !matrix.appimage }}
