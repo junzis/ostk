@@ -100,8 +100,36 @@ if sys.platform == 'darwin':
             'NSHighResolutionCapable': True,
         },
     )
+elif sys.platform == 'linux':
+    # Linux: Use onedir mode for AppImage (allows linuxdeploy to bundle GTK)
+    exe = EXE(
+        pyz,
+        a.scripts,
+        [],
+        exclude_binaries=True,
+        name='OSTK',
+        icon=ICON,
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=True,
+        upx=False,
+        console=False,
+        disable_windowed_traceback=False,
+        argv_emulation=False,
+        target_arch=None,
+        codesign_identity=None,
+        entitlements_file=None,
+    )
+    coll = COLLECT(
+        exe,
+        a.binaries,
+        a.datas,
+        strip=True,
+        upx=False,
+        name='OSTK',
+    )
 else:
-    # Windows/Linux: Single file executable
+    # Windows: Single file executable
     exe = EXE(
         pyz,
         a.scripts,
@@ -112,7 +140,7 @@ else:
         icon=ICON,
         debug=False,
         bootloader_ignore_signals=False,
-        strip=False if sys.platform == 'win32' else True,  # Don't strip on Windows
+        strip=False,  # Don't strip on Windows
         upx=False,  # UPX causes "invalid access to memory" errors on Windows
         upx_exclude=[],
         runtime_tmpdir=None,
