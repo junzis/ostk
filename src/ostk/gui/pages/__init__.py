@@ -1,1 +1,0 @@
-"""OSTK GUI pages."""

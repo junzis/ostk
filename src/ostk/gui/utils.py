@@ -81,11 +81,6 @@ def get_provider_display_name(provider: str) -> str:
     return names.get(provider, provider.title())
 
 
-def format_row_count(count: int) -> str:
-    """Format a row count with commas."""
-    return f"{count:,}"
-
-
 def get_pyopensky_config_path() -> Path:
     """Get the pyopensky configuration file path."""
     try:

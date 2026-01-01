@@ -18,8 +18,6 @@ else:
 
 # Modules to exclude (not needed for desktop GUI)
 EXCLUDES = [
-    # Web-only flet (60MB savings)
-    "flet_web",
     # Dev dependencies
     "IPython",
     "ipykernel",
@@ -29,7 +27,6 @@ EXCLUDES = [
     "matplotlib",
     "pytest",
     # Unused heavy packages
-    "PIL",
     "cv2",
     "scipy",
     # Test modules
@@ -39,17 +36,17 @@ EXCLUDES = [
 ]
 
 a = Analysis(
-    [str(project_root / 'src' / 'ostk' / 'main.py')],
+    [str(project_root / 'src' / 'ostk' / 'gui' / 'main.py')],
     pathex=[str(project_root / 'src')],
     binaries=[],
     datas=[
         (str(project_root / 'src' / 'ostk' / 'agent' / 'agent.md'), 'ostk/agent'),
-        (str(project_root / 'assets' / 'fonts'), 'assets/fonts'),
+        (str(project_root / 'src' / 'ostk' / 'gui' / 'web'), 'ostk/gui/web'),
         (str(project_root / 'assets' / 'icons'), 'assets/icons'),
     ],
     hiddenimports=[
-        'flet',
-        'flet_desktop',
+        'webview',
+        'bottle',
     ],
     hookspath=[],
     hooksconfig={},

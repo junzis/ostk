@@ -11,11 +11,12 @@ dependencies = [
     "numpy>=2.3.4",
     "pymodes>=2.21.1",
     "pyopensky>=2.15",
+    "groq>=0.4.0",
     "ollama>=0.1.0",
     "openai>=1.0.0",
     "rich>=13.0.0",
-    "flet[desktop]>=0.80.0",
-    "flet-cli>=0.80.0",
+    "pywebview>=5.0",
+    "pygobject>=3.42.0; sys_platform == 'linux'",
 ]
 
 [tool.uv]

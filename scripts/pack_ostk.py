@@ -45,12 +45,14 @@ def main():
             pyinstaller_cmd = project_root / ".venv" / "bin" / "pyinstaller"
 
         if not Path(pyinstaller_cmd).exists():
-            print("Error: pyinstaller not found. Install with: uv add pyinstaller --group dev")
+            print(
+                "Error: pyinstaller not found. Install with: uv add pyinstaller --group dev"
+            )
             sys.exit(1)
         pyinstaller_cmd = str(pyinstaller_cmd)
 
     # Spec file
-    spec_file = project_root / "OSTK.spec"
+    spec_file = project_root / "ostk.spec"
 
     if not spec_file.exists():
         print(f"Error: {spec_file} not found")
@@ -75,11 +77,11 @@ def main():
     if result.returncode == 0:
         # Show final size
         if system == "Darwin":
-            output_path = project_root / "dist" / "OSTK.app"
+            output_path = project_root / "dist" / "ostk.app"
         elif system == "Windows":
-            output_path = project_root / "dist" / "OSTK.exe"
+            output_path = project_root / "dist" / "ostk.exe"
         else:
-            output_path = project_root / "dist" / "OSTK"
+            output_path = project_root / "dist" / "ostk"
 
         if output_path.exists():
             if output_path.is_file():
@@ -97,11 +99,11 @@ def main():
             print(f"Size: {size_mb:.1f} MB")
             print()
             if system == "Linux":
-                print("To run: ./dist/OSTK")
+                print("To run: ./dist/ostk")
             elif system == "Darwin":
-                print("To run: open dist/OSTK.app")
+                print("To run: open dist/ostk.app")
             else:
-                print(r"To run: dist\OSTK.exe")
+                print(r"To run: dist\ostk.exe")
             print("=" * 60)
     else:
         print()

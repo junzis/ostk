@@ -6,7 +6,5 @@ if __name__ == "__main__":
     import multiprocessing
     multiprocessing.freeze_support()
 
-    import flet as ft
-    from ostk.gui.app import main as app_main, _before_main
-
-    ft.run(app_main, before_main=_before_main)
+    from ostk.gui.app import run_gui
+    run_gui()

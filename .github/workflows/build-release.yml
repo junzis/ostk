@@ -61,7 +61,7 @@ jobs:
         run: uv pip install pillow
 
       - name: Build executable
-        run: uv run pyinstaller OSTK.spec --noconfirm
+        run: uv run pyinstaller ostk.spec --noconfirm
 
       - name: Sign and package app (macOS)
         if: matrix.macos_app
