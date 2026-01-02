@@ -30,9 +30,9 @@ jobs:
             macos_app: true
           - os: ubuntu-24.04
             artifact_name: ostk-linux
-            asset_name: ostk-linux.AppImage
-            output: dist/OSTK/OSTK
-            appimage: true
+            asset_name: ostk-linux.tar.gz
+            output: dist/OSTK
+            linux_tar: true
 
     runs-on: ${{ matrix.os }}
 
@@ -61,8 +61,7 @@ jobs:
             gobject-introspection \
             libgtk-3-dev \
             libwebkit2gtk-4.1-dev \
-            librsvg2-dev \
-            libfuse2
+            librsvg2-dev
 
       - name: Install dependencies
         run: uv sync --group dev
@@ -86,65 +85,18 @@ jobs:
           codesign --force --deep --sign - dist/OSTK.app
           cd dist && zip -r ../ostk-macos-temp.zip OSTK.app
 
-      - name: Create AppImage (Linux)
-        if: matrix.appimage
+      - name: Create tarball (Linux)
+        if: matrix.linux_tar
         run: |
-          # Create AppDir structure with PyInstaller onedir output
-          mkdir -p AppDir/usr/bin
-          mkdir -p AppDir/usr/lib
-
-          # Copy the entire onedir output (contains Python + dependencies)
-          cp -r dist/OSTK/* AppDir/usr/bin/
-          # Rename executable to lowercase
-          mv AppDir/usr/bin/OSTK AppDir/usr/bin/ostk
-          chmod +x AppDir/usr/bin/ostk
-
-          # Copy icon
-          mkdir -p AppDir/usr/share/icons/hicolor/512x512/apps
-          cp assets/icons/ostk.png AppDir/usr/share/icons/hicolor/512x512/apps/ostk.png
-          cp assets/icons/ostk.png AppDir/ostk.png
-
-          # Create desktop file (no indentation - desktop files are picky)
-          cat > AppDir/ostk.desktop << 'EOF'
-          [Desktop Entry]
-          Name=ostk
-          Exec=ostk
-          Icon=ostk
-          Type=Application
-          Categories=Science;
-          EOF
-          # Remove leading whitespace from desktop file
-          sed -i 's/^[[:space:]]*//' AppDir/ostk.desktop
-
-          # Download linuxdeploy and GTK plugin
-          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage -O linuxdeploy
-          chmod +x linuxdeploy
-
-          wget -q https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh -O linuxdeploy-plugin-gtk.sh
-          chmod +x linuxdeploy-plugin-gtk.sh
-
-          # Extract linuxdeploy (FUSE not available in CI)
-          ./linuxdeploy --appimage-extract
-          mv squashfs-root linuxdeploy-squashfs
-
-          # Set GTK version for the plugin (WebKitGTK uses GTK3)
-          export DEPLOY_GTK_VERSION=3
-          export LINUXDEPLOY_PLUGIN_GTK_SH=$(pwd)/linuxdeploy-plugin-gtk.sh
-
-          # Run linuxdeploy with GTK plugin to bundle all GTK dependencies
-          ./linuxdeploy-squashfs/AppRun \
-            --appdir AppDir \
-            --executable AppDir/usr/bin/ostk \
-            --desktop-file AppDir/ostk.desktop \
-            --icon-file AppDir/ostk.png \
-            --plugin gtk \
-            --output appimage
-
-          # Rename to expected output name
-          mv *.AppImage ${{ matrix.asset_name }}
+          # Create tarball from PyInstaller onedir output
+          # Rename executable to lowercase for consistency
+          mv dist/OSTK/OSTK dist/OSTK/ostk
+          chmod +x dist/OSTK/ostk
+          # Create tarball
+          tar -czvf ${{ matrix.asset_name }} -C dist OSTK
 
       - name: Rename output
-        if: ${{ !matrix.appimage && !matrix.macos_app }}
+        if: ${{ !matrix.linux_tar && !matrix.macos_app }}
         run: mv ${{ matrix.output }} ${{ matrix.asset_name }}
         shell: bash
 
@@ -175,5 +127,5 @@ jobs:
             ostk-windows/ostk-windows.exe
             ostk-macos-apple-silicon/ostk-macos-apple-silicon.zip
             ostk-macos-intel/ostk-macos-intel.zip
-            ostk-linux/ostk-linux.AppImage
+            ostk-linux/ostk-linux.tar.gz
           generate_release_notes: true
