@@ -56,9 +56,89 @@ a = Analysis(
     optimize=0,
 )
 
-# Exclude system SSL libraries that cause version conflicts on Linux
-EXCLUDE_BINARIES = ['libssl.so', 'libcrypto.so']
+# Exclude unused pyarrow components (cloud storage backends, flight RPC)
+EXCLUDE_BINARIES = [
+    'libssl.so',
+    'libcrypto.so',
+    # Unused pyarrow cloud storage and RPC (~25MB)
+    'libarrow_flight',
+    'libarrow_substrait',
+    '_azurefs',
+    '_gcsfs',
+    '_hdfs',
+    '_s3fs',
+    '_flight',
+    '_substrait',
+    '_orc',  # ORC format (we use parquet)
+]
+
+# On Linux, exclude system GTK/GLib libraries - users must install them anyway
+# This saves ~80MB since these come with the system GTK installation
+if sys.platform == 'linux':
+    EXCLUDE_BINARIES.extend([
+        # GTK and GLib stack (users install via apt/dnf/pacman)
+        'libgtk-3.so',
+        'libgdk-3.so',
+        'libgio-2.0.so',
+        'libglib-2.0.so',
+        'libgobject-2.0.so',
+        'libgmodule-2.0.so',
+        'libgthread-2.0.so',
+        # Cairo/Pango graphics
+        'libcairo.so',
+        'libpango',
+        'libpixman',
+        'libharfbuzz.so',
+        'libfreetype.so',
+        'libfontconfig.so',
+        # ICU (internationalization) - comes with system
+        'libicudata.so',
+        'libicuuc.so',
+        'libicui18n.so',
+        # X11/Wayland - system provided
+        'libX11.so',
+        'libxcb',
+        'libwayland',
+        # Other system libs
+        'libxml2.so',
+        'libsqlite3.so',
+        'libsystemd.so',
+        'libdbus',
+        'libepoxy.so',
+        'libatk',
+        'libgnutls.so',
+        'libunistring.so',
+        'libp11-kit.so',
+        'libzstd.so',
+        'libwebp.so',
+        # Misc system libs pulled in by GTK
+        'libtinysparql',
+        'libglycin',
+        'libleancrypto',
+        'libopenraw',
+    ])
+
 a.binaries = [b for b in a.binaries if not any(excl in b[0] for excl in EXCLUDE_BINARIES)]
+
+# Exclude unnecessary large data files to reduce bundle size
+# These are GTK/Qt theme icons and locale files that aren't needed
+EXCLUDE_DATAS = [
+    'share/icons',      # GTK/KDE icon themes (~150MB)
+    'share/locale',     # Translation files (~22MB)
+    'share/themes',     # GTK themes
+]
+
+# On Linux, also exclude GTK typelibs and modules - provided by system
+if sys.platform == 'linux':
+    EXCLUDE_DATAS.extend([
+        'gi_typelibs',   # GObject introspection typelibs
+        'gio_modules',   # GIO modules
+        'share/glib-2.0',
+        'share/fontconfig',
+        'share/mime',
+    ])
+
+a.datas = [d for d in a.datas if not any(excl in d[0] for excl in EXCLUDE_DATAS)]
 
 pyz = PYZ(a.pure)
 
@@ -129,25 +209,30 @@ elif sys.platform == 'linux':
         name='OSTK',
     )
 else:
-    # Windows: Single file executable
+    # Windows: Use onedir mode for fast startup (distribute as zip)
     exe = EXE(
         pyz,
         a.scripts,
-        a.binaries,
-        a.datas,
         [],
+        exclude_binaries=True,
         name='OSTK',
         icon=ICON,
         debug=False,
         bootloader_ignore_signals=False,
         strip=False,  # Don't strip on Windows
-        upx=False,  # UPX causes "invalid access to memory" errors on Windows
-        upx_exclude=[],
-        runtime_tmpdir=None,
+        upx=False,
         console=False,
         disable_windowed_traceback=False,
         argv_emulation=False,
         target_arch=None,
         codesign_identity=None,
         entitlements_file=None,
+    )
+    coll = COLLECT(
+        exe,
+        a.binaries,
+        a.datas,
+        strip=False,
+        upx=False,
+        name='OSTK',
     )

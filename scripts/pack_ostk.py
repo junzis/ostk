@@ -75,22 +75,22 @@ def main():
     result = subprocess.run(command)
 
     if result.returncode == 0:
-        # Show final size
+        # Show final size (all platforms now use onedir mode)
         if system == "Darwin":
-            output_path = project_root / "dist" / "ostk.app"
+            output_path = project_root / "dist" / "OSTK.app"
+            run_cmd = "open dist/OSTK.app"
         elif system == "Windows":
-            output_path = project_root / "dist" / "ostk.exe"
+            output_path = project_root / "dist" / "OSTK"
+            run_cmd = r"dist\OSTK\OSTK.exe"
         else:
-            output_path = project_root / "dist" / "ostk"
+            output_path = project_root / "dist" / "OSTK"
+            run_cmd = "./dist/OSTK/OSTK"
 
         if output_path.exists():
-            if output_path.is_file():
-                size_mb = output_path.stat().st_size / (1024 * 1024)
-            else:
-                # For .app bundles, calculate total size
-                size_mb = sum(
-                    f.stat().st_size for f in output_path.rglob("*") if f.is_file()
-                ) / (1024 * 1024)
+            # Calculate total size for directories
+            size_mb = sum(
+                f.stat().st_size for f in output_path.rglob("*") if f.is_file()
+            ) / (1024 * 1024)
 
             print()
             print("=" * 60)
@@ -98,12 +98,7 @@ def main():
             print(f"Output: {output_path}")
             print(f"Size: {size_mb:.1f} MB")
             print()
-            if system == "Linux":
-                print("To run: ./dist/ostk")
-            elif system == "Darwin":
-                print("To run: open dist/ostk.app")
-            else:
-                print(r"To run: dist\ostk.exe")
+            print(f"To run: {run_cmd}")
             print("=" * 60)
     else:
         print()

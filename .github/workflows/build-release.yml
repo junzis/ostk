@@ -16,8 +16,9 @@ jobs:
         include:
           - os: windows-latest
             artifact_name: ostk-windows
-            asset_name: ostk-windows.exe
-            output: dist/OSTK.exe
+            asset_name: ostk-windows.zip
+            output: dist/OSTK
+            windows_zip: true
           - os: macos-15
             artifact_name: ostk-macos-apple-silicon
             asset_name: ostk-macos-apple-silicon.zip
@@ -95,10 +96,10 @@ jobs:
           # Create tarball
           tar -czvf ${{ matrix.asset_name }} -C dist OSTK
 
-      - name: Rename output
-        if: ${{ !matrix.linux_tar && !matrix.macos_app }}
-        run: mv ${{ matrix.output }} ${{ matrix.asset_name }}
-        shell: bash
+      - name: Create zip (Windows)
+        if: matrix.windows_zip
+        run: Compress-Archive -Path dist/OSTK -DestinationPath ${{ matrix.asset_name }}
+        shell: pwsh
 
       - name: Rename macOS zip
         if: matrix.macos_app
@@ -124,7 +125,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            ostk-windows/ostk-windows.exe
+            ostk-windows/ostk-windows.zip
             ostk-macos-apple-silicon/ostk-macos-apple-silicon.zip
             ostk-macos-intel/ostk-macos-intel.zip
             ostk-linux/ostk-linux.tar.gz

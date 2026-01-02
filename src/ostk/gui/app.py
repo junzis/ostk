@@ -1,11 +1,53 @@
 """PyWebView-based GUI for OSTK."""
 
+import os
 import sys
 from pathlib import Path
 
-import webview
+# Suppress noisy pywebview GTK property warnings (must be before import)
+os.environ.setdefault("PYWEBVIEW_LOG", "CRITICAL")
 
-from .api import Api
+import webview  # noqa: E402
+
+from .api import Api  # noqa: E402
+
+
+def check_linux_dependencies() -> None:
+    """Check if required GUI dependencies are available on Linux."""
+    if sys.platform != "linux":
+        return
+
+    try:
+        import gi
+
+        gi.require_version("Gtk", "3.0")
+        gi.require_version("WebKit2", "4.1")
+        from gi.repository import Gtk, WebKit2  # noqa: F401
+    except (ImportError, ValueError):
+        print(
+            """
+============================================================
+ Missing GUI Dependencies
+============================================================
+
+ OSTK requires GTK3 and WebKitGTK to run on Linux.
+
+ Install with:
+
+ Ubuntu/Debian:
+   sudo apt install gir1.2-webkit2-4.1 libwebkit2gtk-4.1-0
+
+ Fedora:
+   sudo dnf install webkit2gtk4.1
+
+ Arch Linux:
+   sudo pacman -S webkit2gtk-4.1
+
+============================================================
+""",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
 
 def get_web_dir() -> Path:
@@ -26,7 +68,9 @@ def get_web_dir() -> Path:
 def get_icon_path() -> str:
     """Get the application icon path."""
     # When running from source
-    source_path = Path(__file__).parent.parent.parent.parent / "assets" / "icons" / "ostk.png"
+    source_path = (
+        Path(__file__).parent.parent.parent.parent / "assets" / "icons" / "ostk.png"
+    )
     if source_path.exists():
         return str(source_path)
 
@@ -42,6 +86,8 @@ def get_icon_path() -> str:
 
 def run_gui() -> None:
     """Launch the PyWebView GUI."""
+    check_linux_dependencies()
+
     api = Api()
     web_dir = get_web_dir()
 
