@@ -47,6 +47,7 @@ impl Default for CompletionOptions {
 
 /// Error type for LLM operations.
 #[derive(Debug, thiserror::Error)]
+#[allow(dead_code)]  // Some variants reserved for future use
 pub enum LlmError {
     #[error("HTTP error: {0}")]
     Http(#[from] reqwest::Error),

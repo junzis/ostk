@@ -16,13 +16,13 @@ jobs:
           - platform: ubuntu-22.04
             args: ''
             name: linux
-          # macOS Intel
+          # macOS Intel (skip DMG due to GitHub Actions runner issue)
           - platform: macos-latest
-            args: '--target x86_64-apple-darwin'
+            args: '--target x86_64-apple-darwin --bundles app'
             name: macos-intel
-          # macOS Apple Silicon
+          # macOS Apple Silicon (skip DMG due to GitHub Actions runner issue)
           - platform: macos-latest
-            args: '--target aarch64-apple-darwin'
+            args: '--target aarch64-apple-darwin --bundles app'
             name: macos-arm64
           # Windows
           - platform: windows-latest
@@ -61,6 +61,18 @@ jobs:
         with:
           args: ${{ matrix.args }}
 
+      - name: Zip macOS app bundle
+        if: matrix.platform == 'macos-latest'
+        run: |
+          if [ -d "target/x86_64-apple-darwin/release/bundle/macos/OSTK.app" ]; then
+            cd target/x86_64-apple-darwin/release/bundle/macos
+            zip -r OSTK_x64.app.zip OSTK.app
+          fi
+          if [ -d "target/aarch64-apple-darwin/release/bundle/macos/OSTK.app" ]; then
+            cd $GITHUB_WORKSPACE/target/aarch64-apple-darwin/release/bundle/macos
+            zip -r OSTK_arm64.app.zip OSTK.app
+          fi
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -68,11 +80,10 @@ jobs:
           path: |
             target/release/bundle/**/*.deb
             target/release/bundle/**/*.AppImage
-            target/release/bundle/**/*.dmg
             target/release/bundle/**/*.msi
             target/release/bundle/**/*.exe
-            target/x86_64-apple-darwin/release/bundle/**/*.dmg
-            target/aarch64-apple-darwin/release/bundle/**/*.dmg
+            target/x86_64-apple-darwin/release/bundle/macos/*.zip
+            target/aarch64-apple-darwin/release/bundle/macos/*.zip
 
   release:
     needs: build-tauri
@@ -97,7 +108,7 @@ jobs:
           files: |
             artifacts/**/*.deb
             artifacts/**/*.AppImage
-            artifacts/**/*.dmg
+            artifacts/**/*.zip
             artifacts/**/*.msi
             artifacts/**/*.exe
           draft: false

@@ -93,6 +93,7 @@ impl GroqClient {
     }
 
     /// Get the model name.
+    #[allow(dead_code)]  // Used by Agent::model()
     pub fn model(&self) -> &str {
         &self.model
     }

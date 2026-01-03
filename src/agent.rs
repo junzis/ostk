@@ -14,6 +14,7 @@ pub struct Agent {
 
 /// Parsed parameters from LLM response.
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]  // Some fields reserved for future use
 struct ParsedParams {
     status: String,
     #[serde(default)]
@@ -107,6 +108,7 @@ impl Agent {
     }
 
     /// Get the model name being used.
+    #[allow(dead_code)]  // Useful for debugging
     pub fn model(&self) -> &str {
         self.client.model()
     }
