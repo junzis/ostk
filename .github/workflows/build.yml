@@ -12,9 +12,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Linux (binary only, no installers)
+          # Linux (build deb but we only upload the binary)
           - platform: ubuntu-22.04
-            args: '--bundles none'
+            args: ''
             name: linux
           # macOS Intel (skip DMG due to GitHub Actions runner issue)
           - platform: macos-latest
@@ -24,9 +24,9 @@ jobs:
           - platform: macos-latest
             args: '--target aarch64-apple-darwin --bundles app'
             name: macos-arm64
-          # Windows (binary only, no installers)
+          # Windows (build msi but we only upload the binary)
           - platform: windows-latest
-            args: '--bundles none'
+            args: ''
             name: windows
 
     runs-on: ${{ matrix.platform }}
