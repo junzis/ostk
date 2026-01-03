@@ -1,0 +1,106 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  build-tauri:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux
+          - platform: ubuntu-22.04
+            args: ''
+            name: linux
+          # macOS Intel
+          - platform: macos-latest
+            args: '--target x86_64-apple-darwin'
+            name: macos-intel
+          # macOS Apple Silicon
+          - platform: macos-latest
+            args: '--target aarch64-apple-darwin'
+            name: macos-arm64
+          # Windows
+          - platform: windows-latest
+            args: ''
+            name: windows
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Add macOS targets
+        if: matrix.platform == 'macos-latest'
+        run: |
+          rustup target add x86_64-apple-darwin
+          rustup target add aarch64-apple-darwin
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: ${{ matrix.args }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ostk-${{ matrix.name }}
+          path: |
+            target/release/bundle/**/*.deb
+            target/release/bundle/**/*.AppImage
+            target/release/bundle/**/*.dmg
+            target/release/bundle/**/*.msi
+            target/release/bundle/**/*.exe
+            target/x86_64-apple-darwin/release/bundle/**/*.dmg
+            target/aarch64-apple-darwin/release/bundle/**/*.dmg
+
+  release:
+    needs: build-tauri
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List artifacts
+        run: find artifacts -type f 2>/dev/null || echo "No artifacts found"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/**/*.deb
+            artifacts/**/*.AppImage
+            artifacts/**/*.dmg
+            artifacts/**/*.msi
+            artifacts/**/*.exe
+          draft: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

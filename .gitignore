@@ -1,0 +1,37 @@
+# Rust
+/target/
+**/*.rs.bk
+# Note: Cargo.lock is committed for reproducible builds (this is a binary, not a library)
+
+# Tauri
+/gen/schemas/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+
+# Build artifacts
+*.dmg
+*.AppImage
+*.deb
+*.msi
+*.exe
+*.tar.gz
+*.zip
+
+# Debug
+*.pdb

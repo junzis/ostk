@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSTK - OpenSky ToolKit</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Navigation Tabs -->
+        <nav class="tabs">
+            <button class="tab active" data-page="query">Query Builder</button>
+            <button class="tab" data-page="chat">AI Chat</button>
+            <button class="tab" data-page="settings">Settings</button>
+        </nav>
+
+        <!-- Query Page -->
+        <div id="query-page" class="page active">
+            <div class="query-container">
+                <div class="filters-panel">
+                    <h3>Add Filters</h3>
+                    <div class="filter-chips">
+                        <button class="chip" data-filter="start">Start Time *</button>
+                        <button class="chip" data-filter="stop">Stop Time</button>
+                        <button class="chip" data-filter="icao24">ICAO24</button>
+                        <button class="chip" data-filter="callsign">Callsign</button>
+                        <button class="chip" data-filter="departure_airport">Departure</button>
+                        <button class="chip" data-filter="arrival_airport">Arrival</button>
+                        <button class="chip" data-filter="airport">Airport</button>
+                        <button class="chip" data-filter="limit">Limit</button>
+                    </div>
+
+                    <h4>Quick Presets</h4>
+                    <div class="preset-chips">
+                        <button class="chip preset" data-preset="last_hour">Last Hour</button>
+                        <button class="chip preset" data-preset="yesterday">Yesterday</button>
+                        <button class="chip preset" data-preset="last_week">Last Week</button>
+                    </div>
+                </div>
+
+                <div class="active-filters-panel">
+                    <div class="panel-header">
+                        <h3>Active Filters</h3>
+                        <button id="clear-filters" class="btn-text">Clear All</button>
+                    </div>
+                    <div id="active-filters" class="active-filters"></div>
+
+                    <div class="query-actions">
+                        <button id="preview-btn" class="btn btn-secondary">Preview Query</button>
+                        <button id="execute-btn" class="btn btn-primary" disabled>Execute</button>
+                    </div>
+
+                    <pre id="query-preview" class="query-preview hidden"></pre>
+                </div>
+            </div>
+
+            <!-- Execution Panel -->
+            <div id="execution-panel" class="execution-panel hidden">
+                <div class="execution-header">
+                    <div class="execution-status">
+                        <div class="spinner-small"></div>
+                        <span id="execution-status-text">Executing...</span>
+                    </div>
+                    <button id="cancel-btn" class="btn btn-small btn-danger">Cancel</button>
+                </div>
+                <div class="execution-log-container">
+                    <div class="log-header" id="log-toggle">
+                        <span>Execution Log</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <pre id="execution-log" class="execution-log"></pre>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div id="query-results" class="results-container hidden">
+                <div class="results-header">
+                    <h3>Results <span id="row-count"></span></h3>
+                    <div class="export-buttons">
+                        <button id="export-csv" class="btn btn-primary">Save as CSV</button>
+                        <button id="export-parquet" class="btn btn-secondary">Save as Parquet</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Page -->
+        <div id="chat-page" class="page">
+            <div class="chat-container">
+                <div id="chat-messages" class="chat-messages">
+                    <div class="message assistant">
+                        <div class="message-content">
+                            <p>Hello! I'm your OpenSky assistant. Ask me about flight data, for example:</p>
+                            <ul>
+                                <li>Flights from Amsterdam to London yesterday</li>
+                                <li>Get trajectory for aircraft 485A32 on Nov 8, 2025</li>
+                                <li>Flights departing from EHAM in the last hour</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-input-container">
+                    <div class="chat-input-row">
+                        <textarea id="chat-input" placeholder="Type your query..." rows="2"></textarea>
+                        <button id="send-btn" class="btn btn-primary">Send</button>
+                    </div>
+                    <p class="agent-status" id="agent-status"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Page -->
+        <div id="settings-page" class="page">
+            <div class="settings-container">
+                <section class="settings-section">
+                    <h3>OpenSky Credentials</h3>
+                    <div class="form-row">
+                        <label>Username</label>
+                        <input type="text" id="opensky-username" placeholder="Your OpenSky username">
+                    </div>
+                    <div class="form-row">
+                        <label>Password</label>
+                        <div class="input-with-toggle">
+                            <input type="password" id="opensky-password" placeholder="Your OpenSky password">
+                            <button type="button" class="toggle-visibility" data-target="opensky-password">👁</button>
+                        </div>
+                    </div>
+                    <button id="save-opensky" class="btn btn-primary">Save</button>
+                </section>
+
+                <section class="settings-section">
+                    <h3>LLM Provider</h3>
+                    <div class="form-row">
+                        <label>Provider</label>
+                        <select id="llm-provider">
+                            <option value="groq">Groq (Recommended)</option>
+                            <option value="openai">OpenAI</option>
+                            <option value="ollama">Ollama (Local)</option>
+                        </select>
+                    </div>
+
+                    <div id="groq-settings" class="provider-settings">
+                        <div class="form-row">
+                            <label>API Key</label>
+                            <div class="input-with-toggle">
+                                <input type="password" id="groq-api-key" placeholder="gsk_...">
+                                <button type="button" class="toggle-visibility" data-target="groq-api-key">👁</button>
+                            </div>
+                        </div>
+                        <small class="form-hint">Get your <b>free key</b> at <a href="https://console.groq.com" target="_blank">console.groq.com</a></small>
+                        <div class="form-row">
+                            <label>Model</label>
+                            <div class="input-with-button">
+                                <select id="groq-model">
+                                    <option value="">-- Click Fetch to load models --</option>
+                                </select>
+                                <button type="button" class="btn btn-small" id="fetch-groq-models">Fetch</button>
+                            </div>
+                        </div>
+                        <small class="form-hint">Click Fetch to get available models</small>
+                    </div>
+
+                    <div id="openai-settings" class="provider-settings hidden">
+                        <div class="form-row">
+                            <label>API Key</label>
+                            <div class="input-with-toggle">
+                                <input type="password" id="openai-api-key" placeholder="sk-...">
+                                <button type="button" class="toggle-visibility" data-target="openai-api-key">👁</button>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label>Model</label>
+                            <select id="openai-model">
+                                <option value="gpt-4o">gpt-4o</option>
+                                <option value="gpt-4o-mini">gpt-4o-mini</option>
+                                <option value="gpt-4-turbo">gpt-4-turbo</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="ollama-settings" class="provider-settings hidden">
+                        <div class="form-row">
+                            <label>Base URL</label>
+                            <input type="text" id="ollama-url" value="http://localhost:11434">
+                        </div>
+                        <div class="form-row">
+                            <label>Model</label>
+                            <select id="ollama-model">
+                                <option value="llama3.1:8b">llama3.1:8b</option>
+                                <option value="qwen2.5-coder:7b">qwen2.5-coder:7b</option>
+                                <option value="mistral:7b">mistral:7b</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button id="save-llm" class="btn btn-primary">Save</button>
+                </section>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading" class="loading-overlay hidden">
+            <div class="spinner"></div>
+            <p id="loading-text">Loading...</p>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toast" class="toast hidden"></div>
+    </div>
+
+    <!-- Filter Modal -->
+    <div id="filter-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3 id="modal-title">Add Filter</h3>
+            <div class="form-group">
+                <label id="modal-label"></label>
+                <input type="text" id="modal-input">
+            </div>
+            <div class="modal-actions">
+                <button id="modal-cancel" class="btn btn-secondary">Cancel</button>
+                <button id="modal-confirm" class="btn btn-primary">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
