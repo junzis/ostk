@@ -61,38 +61,37 @@ jobs:
         with:
           args: ${{ matrix.args }}
 
-      - name: Prepare Linux binary
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          mv target/release/ostk target/release/ostk-linux-x64
-
-      - name: Prepare Windows binary
-        if: matrix.platform == 'windows-latest'
+      - name: Prepare artifacts (flat structure)
         shell: bash
         run: |
-          mv target/release/ostk.exe target/release/ostk-windows-x64.exe
-
-      - name: Prepare macOS app bundle
-        if: matrix.platform == 'macos-latest'
-        run: |
+          mkdir -p dist
+          # Linux
+          if [ -f "target/release/ostk" ]; then
+            cp target/release/ostk dist/ostk-linux-x64
+          fi
+          # Windows
+          if [ -f "target/release/ostk.exe" ]; then
+            cp target/release/ostk.exe dist/ostk-windows-x64.exe
+          fi
+          # macOS Intel (ad-hoc sign before zipping)
           if [ -d "target/x86_64-apple-darwin/release/bundle/macos/OSTK.app" ]; then
+            codesign --force --deep --sign - target/x86_64-apple-darwin/release/bundle/macos/OSTK.app
             cd target/x86_64-apple-darwin/release/bundle/macos
-            zip -r OSTK-macos-x64.app.zip OSTK.app
+            zip -r $GITHUB_WORKSPACE/dist/OSTK-macos-x64.app.zip OSTK.app
           fi
+          # macOS ARM (ad-hoc sign before zipping)
           if [ -d "target/aarch64-apple-darwin/release/bundle/macos/OSTK.app" ]; then
+            codesign --force --deep --sign - target/aarch64-apple-darwin/release/bundle/macos/OSTK.app
             cd $GITHUB_WORKSPACE/target/aarch64-apple-darwin/release/bundle/macos
-            zip -r OSTK-macos-arm64.app.zip OSTK.app
+            zip -r $GITHUB_WORKSPACE/dist/OSTK-macos-arm64.app.zip OSTK.app
           fi
+          ls -la $GITHUB_WORKSPACE/dist/
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ostk-${{ matrix.name }}
-          path: |
-            target/release/ostk-linux-x64
-            target/release/ostk-windows-x64.exe
-            target/x86_64-apple-darwin/release/bundle/macos/*.zip
-            target/aarch64-apple-darwin/release/bundle/macos/*.zip
+          path: dist/*
 
   release:
     needs: build-tauri
@@ -109,15 +108,12 @@ jobs:
           merge-multiple: true
 
       - name: List artifacts
-        run: find artifacts -type f 2>/dev/null || echo "No artifacts found"
+        run: ls -la artifacts/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            artifacts/**/ostk-linux-x64
-            artifacts/**/ostk-windows-x64.exe
-            artifacts/**/*.zip
+          files: artifacts/*
           draft: false
           generate_release_notes: true
         env:

@@ -24,10 +24,42 @@ Download from [GitHub Releases](https://github.com/junzis/ostk/releases):
 
 | Platform | Download |
 |----------|----------|
-| Windows | `ostk_windows_amd64.msi` |
-| macOS (Intel) | `ostk_macos_intel.dmg` |
-| macOS (Apple Silicon) | `ostk_macos_arm64.dmg` |
-| Linux | `ostk_linux_amd64.AppImage` or `.deb` |
+| Linux x64 | `ostk-linux-x64` |
+| Windows x64 | `ostk-windows-x64.exe` |
+| macOS Intel | `OSTK-macos-x64.app.zip` |
+| macOS Apple Silicon | `OSTK-macos-arm64.app.zip` |
+
+#### macOS Installation
+
+The macOS app is ad-hoc signed. On first launch, you may see a security warning. To allow the app:
+
+```bash
+# Unzip and move to Applications
+unzip OSTK-macos-*.app.zip
+mv OSTK.app /Applications/
+
+# Remove quarantine attribute
+xattr -cr /Applications/OSTK.app
+```
+
+Or: Right-click the app → Open → Click "Open" in the dialog.
+
+#### Linux Installation
+
+```bash
+# Make executable and run
+chmod +x ostk-linux-x64
+./ostk-linux-x64
+```
+
+**Required dependencies:**
+```bash
+# Debian/Ubuntu
+sudo apt install libwebkit2gtk-4.1-0
+
+# Arch Linux
+sudo pacman -S webkit2gtk-4.1
+```
 
 ### Build from Source
 
