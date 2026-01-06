@@ -65,12 +65,12 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          # Linux
-          if [ -f "target/release/ostk" ]; then
+          # Linux (only on Linux runner)
+          if [ "${{ matrix.name }}" = "linux" ] && [ -f "target/release/ostk" ]; then
             cp target/release/ostk dist/ostk-linux-x64
           fi
-          # Windows
-          if [ -f "target/release/ostk.exe" ]; then
+          # Windows (only on Windows runner)
+          if [ "${{ matrix.name }}" = "windows" ] && [ -f "target/release/ostk.exe" ]; then
             cp target/release/ostk.exe dist/ostk-windows-x64.exe
           fi
           # macOS Intel (ad-hoc sign before zipping)
