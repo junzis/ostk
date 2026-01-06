@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // State
 let currentFilters = {};
+let currentQueryType = 'flights';  // Default query type
 let queryPreviewShown = false;
 let executionPollInterval = null;
 let isExecuting = false;  // Global lock to prevent concurrent executions
@@ -19,12 +20,15 @@ let isExecuting = false;  // Global lock to prevent concurrent executions
 // DOM Elements
 const elements = {};
 
-function init() {
+async function init() {
     console.log('OSTK initializing...');
     cacheElements();
     setupEventListeners();
     loadSettings();
     updateAgentStatus();
+    // Set initial filter visibility and sync query type to backend
+    updateFilterVisibility(currentQueryType);
+    await invoke('set_query_type', { queryType: currentQueryType });
 }
 
 function cacheElements() {
@@ -32,7 +36,10 @@ function cacheElements() {
     elements.tabs = document.querySelectorAll('.tab');
     elements.pages = document.querySelectorAll('.page');
 
-    // Query page
+    // Query page - query type selector
+    elements.queryTypeBtns = document.querySelectorAll('.query-type-btn');
+
+    // Query page - filters
     elements.filterChips = document.querySelectorAll('.chip[data-filter]');
     elements.presetChips = document.querySelectorAll('.chip[data-preset]');
     elements.activeFilters = document.getElementById('active-filters');
@@ -72,6 +79,16 @@ function cacheElements() {
     elements.modalCancel = document.getElementById('modal-cancel');
     elements.modalConfirm = document.getElementById('modal-confirm');
 
+    // Map Modal
+    elements.mapModal = document.getElementById('map-modal');
+    elements.boundsMap = document.getElementById('bounds-map');
+    elements.boundsText = document.getElementById('bounds-text');
+    elements.mapCancel = document.getElementById('map-cancel');
+    elements.mapClear = document.getElementById('map-clear');
+    elements.mapConfirm = document.getElementById('map-confirm');
+    elements.modePan = document.getElementById('mode-pan');
+    elements.modeDraw = document.getElementById('mode-draw');
+
     // Loading & Toast
     elements.loading = document.getElementById('loading');
     elements.loadingText = document.getElementById('loading-text');
@@ -82,6 +99,11 @@ function setupEventListeners() {
     // Tab navigation
     elements.tabs.forEach(tab => {
         tab.addEventListener('click', () => switchTab(tab.dataset.page));
+    });
+
+    // Query page - query type selector
+    elements.queryTypeBtns.forEach(btn => {
+        btn.addEventListener('click', () => selectQueryType(btn.dataset.type));
     });
 
     // Query page - add filter and start inline editing
@@ -133,6 +155,13 @@ function setupEventListeners() {
         if (e.key === 'Enter') confirmFilter();
         if (e.key === 'Escape') hideModal();
     });
+
+    // Map Modal
+    elements.mapCancel.addEventListener('click', hideMapModal);
+    elements.mapClear.addEventListener('click', clearMapSelection);
+    elements.mapConfirm.addEventListener('click', confirmMapSelection);
+    elements.modePan.addEventListener('click', () => setMapMode('pan'));
+    elements.modeDraw.addEventListener('click', () => setMapMode('draw'));
 }
 
 // ========== Global Execution Lock ==========
@@ -166,9 +195,72 @@ function switchTab(page) {
     elements.pages.forEach(p => p.classList.toggle('active', p.id === `${page}-page`));
 }
 
+// ========== Query Type Selection ==========
+
+async function selectQueryType(queryType) {
+    currentQueryType = queryType;
+
+    // Update button states
+    elements.queryTypeBtns.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.type === queryType);
+    });
+
+    // Update filter chip visibility based on query type
+    updateFilterVisibility(queryType);
+
+    // Send to backend
+    await invoke('set_query_type', { queryType: queryType });
+
+    // Clear any filters that are now hidden
+    clearHiddenFilters();
+
+    // Reset query state
+    resetQueryState();
+}
+
+function updateFilterVisibility(queryType) {
+    // Show/hide filter chips based on query type
+    elements.filterChips.forEach(chip => {
+        const allowedTypes = chip.dataset.queryTypes;
+        if (allowedTypes) {
+            // Chip has specific query type restrictions
+            const isVisible = allowedTypes.split(',').includes(queryType);
+            chip.classList.toggle('filter-hidden', !isVisible);
+        } else {
+            // Chip is available for all query types
+            chip.classList.remove('filter-hidden');
+        }
+    });
+}
+
+function clearHiddenFilters() {
+    // Remove any active filters that are now hidden
+    const hiddenFilterTypes = [];
+    elements.filterChips.forEach(chip => {
+        if (chip.classList.contains('filter-hidden')) {
+            hiddenFilterTypes.push(chip.dataset.filter);
+        }
+    });
+
+    hiddenFilterTypes.forEach(async (filter) => {
+        if (currentFilters[filter] !== undefined) {
+            delete currentFilters[filter];
+            await invoke('set_query_param', { key: filter, value: null });
+        }
+    });
+
+    renderActiveFilters();
+}
+
 // ========== Query Page ==========
 
 function addFilterInline(filter) {
+    // Handle bounds filter specially - show map modal
+    if (filter === 'bounds') {
+        showMapModal();
+        return;
+    }
+
     // If filter already exists, just focus on it for editing
     if (currentFilters[filter] !== undefined) {
         const existingItem = elements.activeFilters.querySelector(`.filter-item[data-filter="${filter}"]`);
@@ -198,6 +290,7 @@ const filterLabels = {
     stop: 'Stop Time',
     icao24: 'ICAO24',
     callsign: 'Callsign',
+    bounds: 'Region',
     departure_airport: 'Departure Airport',
     arrival_airport: 'Arrival Airport',
     airport: 'Airport',
@@ -285,14 +378,25 @@ function renderActiveFilters() {
         const item = document.createElement('div');
         item.className = 'filter-item';
         item.dataset.filter = key;
-        const displayValue = value === '' ? '' : value;
-        const placeholder = getPlaceholder(key);
-        item.innerHTML = `
-            <span class="label">${filterLabels[key]}</span>
-            <span class="value ${value === '' ? 'empty' : ''}" data-filter="${key}">${displayValue || placeholder}</span>
-            <input class="value-input hidden" data-filter="${key}" type="text" value="${displayValue}" placeholder="${placeholder}">
-            <button class="remove" data-filter="${key}">&times;</button>
-        `;
+
+        // Handle bounds specially - it's an object, not a string
+        if (key === 'bounds' && typeof value === 'object') {
+            const boundsStr = `(${value.west}, ${value.south}, ${value.east}, ${value.north})`;
+            item.innerHTML = `
+                <span class="label">${filterLabels[key]}</span>
+                <span class="value bounds-value" data-filter="${key}">${boundsStr}</span>
+                <button class="remove" data-filter="${key}">&times;</button>
+            `;
+        } else {
+            const displayValue = value === '' ? '' : value;
+            const placeholder = getPlaceholder(key);
+            item.innerHTML = `
+                <span class="label">${filterLabels[key]}</span>
+                <span class="value ${value === '' ? 'empty' : ''}" data-filter="${key}">${displayValue || placeholder}</span>
+                <input class="value-input hidden" data-filter="${key}" type="text" value="${displayValue}" placeholder="${placeholder}">
+                <button class="remove" data-filter="${key}">&times;</button>
+            `;
+        }
         elements.activeFilters.appendChild(item);
     }
 
@@ -319,6 +423,13 @@ function setupFilterListeners() {
     elements.activeFilters.querySelectorAll('.value').forEach(span => {
         span.addEventListener('click', (e) => {
             const filter = span.dataset.filter;
+
+            // Bounds opens map modal instead of inline edit
+            if (filter === 'bounds') {
+                showMapModal();
+                return;
+            }
+
             const item = span.closest('.filter-item');
             const input = item.querySelector('.value-input');
 
@@ -415,7 +526,15 @@ async function previewQuery() {
     // Clear all backend params first, then set only the ones from Query Builder UI
     await invoke('clear_query_params');
     for (const [key, value] of Object.entries(currentFilters)) {
-        await invoke('set_query_param', { key, value });
+        // Convert bounds object {west, south, east, north} to array format for backend
+        if (key === 'bounds' && value && typeof value === 'object') {
+            await invoke('set_query_param', {
+                key,
+                value: [value.west, value.south, value.east, value.north]
+            });
+        } else {
+            await invoke('set_query_param', { key, value });
+        }
     }
 
     const preview = await invoke('build_query_preview_cmd');
@@ -672,7 +791,7 @@ async function sendMessage() {
 
         newMessages.forEach(msg => {
             if (msg.role === 'assistant') {
-                addChatMessage('assistant', msg.content, msg.type);
+                addChatMessage('assistant', msg.content, msg.type, msg.hint);
             }
         });
 
@@ -683,7 +802,7 @@ async function sendMessage() {
     }
 }
 
-function addChatMessage(role, content, type = 'text') {
+function addChatMessage(role, content, type = 'text', hint = null) {
     const msg = document.createElement('div');
     msg.className = `message ${role}`;
     if (type === 'error') msg.classList.add('error');
@@ -695,6 +814,7 @@ function addChatMessage(role, content, type = 'text') {
         html += `
             <div class="code-block" id="${msgId}">
                 <pre><code>${escapeHtml(content)}</code></pre>
+                ${hint ? `<div class="query-hint">${escapeHtml(hint)}</div>` : ''}
                 <button class="btn btn-primary execute-btn" data-code-id="${msgId}">Execute</button>
             </div>
         `;
@@ -1132,4 +1252,408 @@ function showToast(message, type = 'info') {
     setTimeout(() => {
         elements.toast.classList.add('hidden');
     }, 3000);
+}
+
+// ========== Map Modal for Bounds Selection ==========
+
+let boundsMap = null;
+let currentRectangle = null;
+let cornerMarkers = [];  // [SW, NW, NE, SE] corner handles
+let mapMode = 'pan';  // 'pan' or 'draw'
+let isDrawing = false;
+let isDragging = false;
+let isResizing = false;
+let resizeCorner = null;  // Which corner is being dragged
+let drawStartLatLng = null;
+let dragStartLatLng = null;
+let dragStartBounds = null;
+let selectedBounds = null;
+
+function showMapModal() {
+    elements.mapModal.classList.remove('hidden');
+
+    // Initialize map if not already done
+    if (!boundsMap) {
+        boundsMap = L.map('bounds-map').setView([50, 10], 4);  // Center on Europe
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 18,
+        }).addTo(boundsMap);
+
+        // Add mouse event handlers for drawing/dragging
+        boundsMap.on('mousedown', onMapMouseDown);
+        boundsMap.on('mousemove', onMapMouseMove);
+        boundsMap.on('mouseup', onMapMouseUp);
+
+        // Native DOM mousemove for cursor updates (fires over all layers)
+        elements.boundsMap.addEventListener('mousemove', onMapCursorMove);
+
+        // Set initial cursor (grab for panning, Shift+drag to draw)
+        elements.boundsMap.style.cursor = 'grab';
+
+        // Handle window resize
+        window.addEventListener('resize', onWindowResize);
+    }
+
+    // Force map to recalculate size (needed when modal becomes visible)
+    setTimeout(() => {
+        boundsMap.invalidateSize();
+
+        // If there's an existing bounds filter, show it
+        if (currentFilters.bounds) {
+            const b = currentFilters.bounds;
+            selectedBounds = b;
+            showRectangle([[b.south, b.west], [b.north, b.east]]);
+            updateBoundsDisplay();
+            elements.mapConfirm.disabled = false;
+        }
+    }, 100);
+}
+
+function onWindowResize() {
+    // Update map size when window is resized (only if modal is visible)
+    if (boundsMap && !elements.mapModal.classList.contains('hidden')) {
+        boundsMap.invalidateSize();
+    }
+}
+
+function hideMapModal() {
+    elements.mapModal.classList.add('hidden');
+}
+
+function setMapMode(mode) {
+    mapMode = mode;
+    elements.modePan.classList.toggle('active', mode === 'pan');
+    elements.modeDraw.classList.toggle('active', mode === 'draw');
+    // Update cursor
+    elements.boundsMap.style.cursor = mode === 'draw' ? 'crosshair' : 'grab';
+}
+
+function isPointInRectangle(latlng) {
+    if (!currentRectangle) return false;
+    return currentRectangle.getBounds().contains(latlng);
+}
+
+function onMapMouseDown(e) {
+    if (e.originalEvent.button !== 0) return;  // Only left click
+
+    // Check if clicking on a corner - start resizing
+    const corner = getCornerAtPoint(e.latlng);
+    if (corner) {
+        isResizing = true;
+        resizeCorner = corner;
+        dragStartBounds = currentRectangle.getBounds();
+        boundsMap.dragging.disable();
+        return;
+    }
+
+    // Check if clicking on existing rectangle - start dragging rectangle
+    if (currentRectangle && isPointInRectangle(e.latlng)) {
+        isDragging = true;
+        dragStartLatLng = e.latlng;
+        dragStartBounds = currentRectangle.getBounds();
+        boundsMap.dragging.disable();
+        return;
+    }
+
+    // Only draw in draw mode, otherwise allow map panning
+    if (mapMode !== 'draw') {
+        return;  // Let Leaflet handle map panning
+    }
+
+    // Start drawing new rectangle
+    isDrawing = true;
+    drawStartLatLng = e.latlng;
+
+    // Remove existing rectangle when drawing new one
+    if (currentRectangle) {
+        boundsMap.removeLayer(currentRectangle);
+        currentRectangle = null;
+        removeCornerMarkers();
+    }
+
+    boundsMap.dragging.disable();
+}
+
+function onMapMouseMove(e) {
+    // Handle resizing from corner
+    if (isResizing && resizeCorner && dragStartBounds) {
+        const bounds = dragStartBounds;
+        let newSouth = bounds.getSouth();
+        let newNorth = bounds.getNorth();
+        let newWest = bounds.getWest();
+        let newEast = bounds.getEast();
+
+        // Update the appropriate edges based on which corner is being dragged
+        switch (resizeCorner) {
+            case 'sw':
+                newSouth = e.latlng.lat;
+                newWest = e.latlng.lng;
+                break;
+            case 'nw':
+                newNorth = e.latlng.lat;
+                newWest = e.latlng.lng;
+                break;
+            case 'ne':
+                newNorth = e.latlng.lat;
+                newEast = e.latlng.lng;
+                break;
+            case 'se':
+                newSouth = e.latlng.lat;
+                newEast = e.latlng.lng;
+                break;
+        }
+
+        // Ensure bounds are valid (south < north, west < east)
+        if (newSouth > newNorth) [newSouth, newNorth] = [newNorth, newSouth];
+        if (newWest > newEast) [newWest, newEast] = [newEast, newWest];
+
+        const newBounds = L.latLngBounds(
+            [newSouth, newWest],
+            [newNorth, newEast]
+        );
+
+        currentRectangle.setBounds(newBounds);
+        updateCornerMarkers();
+        return;
+    }
+
+    // Handle dragging existing rectangle
+    if (isDragging && dragStartLatLng && dragStartBounds) {
+        const latDiff = e.latlng.lat - dragStartLatLng.lat;
+        const lngDiff = e.latlng.lng - dragStartLatLng.lng;
+
+        const newBounds = L.latLngBounds(
+            [dragStartBounds.getSouth() + latDiff, dragStartBounds.getWest() + lngDiff],
+            [dragStartBounds.getNorth() + latDiff, dragStartBounds.getEast() + lngDiff]
+        );
+
+        currentRectangle.setBounds(newBounds);
+        updateCornerMarkers();
+        return;
+    }
+
+    // Handle drawing new rectangle
+    if (isDrawing && drawStartLatLng) {
+        const bounds = L.latLngBounds(drawStartLatLng, e.latlng);
+
+        if (currentRectangle) {
+            currentRectangle.setBounds(bounds);
+        } else {
+            currentRectangle = L.rectangle(bounds, {
+                color: '#3b82f6',
+                weight: 2,
+                fillOpacity: 0.15,
+                className: 'bounds-rectangle'
+            }).addTo(boundsMap);
+        }
+        return;
+    }
+
+    // Update cursor based on what's under the mouse (only when not actively drawing/dragging)
+    updateMapCursor(e.latlng);
+}
+
+// Native DOM event handler for cursor updates (works over all Leaflet layers)
+function onMapCursorMove(e) {
+    // Don't update cursor during active operations
+    if (isDrawing || isDragging || isResizing) return;
+
+    // Convert pixel coordinates to lat/lng
+    const rect = elements.boundsMap.getBoundingClientRect();
+    const point = L.point(e.clientX - rect.left, e.clientY - rect.top);
+    const latlng = boundsMap.containerPointToLatLng(point);
+
+    updateMapCursor(latlng);
+}
+
+function updateMapCursor(latlng) {
+    const mapContainer = elements.boundsMap;
+
+    // Check if over the rectangle (includes corners)
+    if (currentRectangle && isPointInRectangle(latlng)) {
+        mapContainer.style.cursor = 'move';
+        return;
+    }
+
+    // Cursor based on current mode
+    mapContainer.style.cursor = mapMode === 'draw' ? 'crosshair' : 'grab';
+}
+
+function onMapMouseUp(e) {
+    // Finish resizing
+    if (isResizing) {
+        isResizing = false;
+        resizeCorner = null;
+        dragStartBounds = null;
+        boundsMap.dragging.enable();
+
+        if (currentRectangle) {
+            updateSelectedBoundsFromRectangle();
+            updateCornerMarkers();
+        }
+        return;
+    }
+
+    // Finish dragging
+    if (isDragging) {
+        isDragging = false;
+        dragStartLatLng = null;
+        dragStartBounds = null;
+        boundsMap.dragging.enable();
+
+        if (currentRectangle) {
+            updateSelectedBoundsFromRectangle();
+            updateCornerMarkers();
+        }
+        return;
+    }
+
+    // Finish drawing
+    if (!isDrawing) return;
+
+    isDrawing = false;
+    boundsMap.dragging.enable();
+
+    if (drawStartLatLng && currentRectangle) {
+        updateSelectedBoundsFromRectangle();
+        createCornerMarkers();
+    }
+
+    drawStartLatLng = null;
+}
+
+function updateSelectedBoundsFromRectangle() {
+    const bounds = currentRectangle.getBounds();
+    selectedBounds = {
+        west: Math.round(bounds.getWest() * 100) / 100,
+        south: Math.round(bounds.getSouth() * 100) / 100,
+        east: Math.round(bounds.getEast() * 100) / 100,
+        north: Math.round(bounds.getNorth() * 100) / 100
+    };
+    updateBoundsDisplay();
+    elements.mapConfirm.disabled = false;
+}
+
+function showRectangle(bounds) {
+    if (currentRectangle) {
+        boundsMap.removeLayer(currentRectangle);
+    }
+    currentRectangle = L.rectangle(bounds, {
+        color: '#3b82f6',
+        weight: 2,
+        fillOpacity: 0.15
+    }).addTo(boundsMap);
+    boundsMap.fitBounds(bounds, { padding: [20, 20] });
+    updateCornerMarkers();
+}
+
+// Corner marker icon
+const cornerIcon = L.divIcon({
+    className: 'corner-marker',
+    iconSize: [16, 16],
+    iconAnchor: [8, 8]
+});
+
+function createCornerMarkers() {
+    // Remove existing markers
+    removeCornerMarkers();
+
+    if (!currentRectangle) return;
+
+    const bounds = currentRectangle.getBounds();
+    const corners = [
+        { pos: bounds.getSouthWest(), name: 'sw' },
+        { pos: bounds.getNorthWest(), name: 'nw' },
+        { pos: bounds.getNorthEast(), name: 'ne' },
+        { pos: bounds.getSouthEast(), name: 'se' }
+    ];
+
+    corners.forEach(corner => {
+        const marker = L.marker(corner.pos, {
+            icon: cornerIcon,
+            draggable: false  // We handle dragging manually
+        }).addTo(boundsMap);
+
+        marker.cornerName = corner.name;
+        cornerMarkers.push(marker);
+    });
+}
+
+function removeCornerMarkers() {
+    cornerMarkers.forEach(marker => {
+        boundsMap.removeLayer(marker);
+    });
+    cornerMarkers = [];
+}
+
+function updateCornerMarkers() {
+    if (!currentRectangle || cornerMarkers.length === 0) {
+        createCornerMarkers();
+        return;
+    }
+
+    const bounds = currentRectangle.getBounds();
+    const positions = [
+        bounds.getSouthWest(),
+        bounds.getNorthWest(),
+        bounds.getNorthEast(),
+        bounds.getSouthEast()
+    ];
+
+    cornerMarkers.forEach((marker, i) => {
+        marker.setLatLng(positions[i]);
+    });
+}
+
+function getCornerAtPoint(latlng) {
+    if (!cornerMarkers || cornerMarkers.length === 0) return null;
+
+    const threshold = 20;  // pixels
+    const clickPoint = boundsMap.latLngToContainerPoint(latlng);
+
+    for (const marker of cornerMarkers) {
+        const markerPoint = boundsMap.latLngToContainerPoint(marker.getLatLng());
+        if (markerPoint.distanceTo(clickPoint) < threshold) {
+            return marker.cornerName;
+        }
+    }
+    return null;
+}
+
+function updateBoundsDisplay() {
+    if (selectedBounds) {
+        elements.boundsText.textContent =
+            `West: ${selectedBounds.west}°, South: ${selectedBounds.south}°, East: ${selectedBounds.east}°, North: ${selectedBounds.north}°`;
+    } else {
+        elements.boundsText.textContent = 'No region selected';
+    }
+}
+
+function clearMapSelection() {
+    if (currentRectangle) {
+        boundsMap.removeLayer(currentRectangle);
+        currentRectangle = null;
+    }
+    selectedBounds = null;
+    updateBoundsDisplay();
+    elements.mapConfirm.disabled = true;
+}
+
+async function confirmMapSelection() {
+    if (!selectedBounds) return;
+
+    // Store bounds in currentFilters
+    currentFilters.bounds = selectedBounds;
+
+    // Send to backend
+    await invoke('set_query_param', {
+        key: 'bounds',
+        value: [selectedBounds.west, selectedBounds.south, selectedBounds.east, selectedBounds.north]
+    });
+
+    renderActiveFilters();
+    hideMapModal();
+    resetQueryState();
 }

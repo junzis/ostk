@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OSTK - OpenSky ToolKit</title>
     <link rel="stylesheet" href="css/style.css">
+    <!-- Font Awesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin=""/>
+    <!-- Leaflet for map-based bounds selection -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 </head>
 <body>
     <div class="app">
@@ -19,15 +24,35 @@
         <div id="query-page" class="page active">
             <div class="query-container">
                 <div class="filters-panel">
+                    <h3>Query Type</h3>
+                    <div class="query-type-selector">
+                        <button class="query-type-btn active" data-type="flights">
+                            <span class="type-icon"><i class="fa-solid fa-plane-departure"></i></span>
+                            <span class="type-label">Flight List</span>
+                            <span class="type-desc">Departures & arrivals</span>
+                        </button>
+                        <button class="query-type-btn" data-type="trajectory">
+                            <span class="type-icon"><i class="fa-solid fa-route"></i></span>
+                            <span class="type-label">Trajectory</span>
+                            <span class="type-desc">Position over time</span>
+                        </button>
+                        <button class="query-type-btn" data-type="rawdata">
+                            <span class="type-icon"><i class="fa-solid fa-satellite-dish"></i></span>
+                            <span class="type-label">Raw Data</span>
+                            <span class="type-desc">ADS-B messages</span>
+                        </button>
+                    </div>
+
                     <h3>Add Filters</h3>
                     <div class="filter-chips">
                         <button class="chip" data-filter="start">Start Time *</button>
                         <button class="chip" data-filter="stop">Stop Time</button>
                         <button class="chip" data-filter="icao24">ICAO24</button>
                         <button class="chip" data-filter="callsign">Callsign</button>
-                        <button class="chip" data-filter="departure_airport">Departure</button>
-                        <button class="chip" data-filter="arrival_airport">Arrival</button>
-                        <button class="chip" data-filter="airport">Airport</button>
+                        <button class="chip" data-filter="bounds" data-query-types="trajectory,rawdata"><i class="fa-solid fa-crop-simple"></i> Region</button>
+                        <button class="chip" data-filter="departure_airport" data-query-types="flights">Departure</button>
+                        <button class="chip" data-filter="arrival_airport" data-query-types="flights">Arrival</button>
+                        <button class="chip" data-filter="airport" data-query-types="flights">Airport</button>
                         <button class="chip" data-filter="limit">Limit</button>
                     </div>
 
@@ -91,11 +116,20 @@
                 <div id="chat-messages" class="chat-messages">
                     <div class="message assistant">
                         <div class="message-content">
-                            <p>Hello! I'm your OpenSky assistant. Ask me about flight data, for example:</p>
-                            <ul>
-                                <li>Flights from Amsterdam to London yesterday</li>
-                                <li>Get trajectory for aircraft 485A32 on Nov 8, 2025</li>
-                                <li>Flights departing from EHAM in the last hour</li>
+                            <p>Hello! I'm your OpenSky assistant. I can help you query three types of flight data:</p>
+                            <ul class="query-examples">
+                                <li>
+                                    <strong>Flight List</strong> — departures, arrivals, and routes<br>
+                                    <em>"Flights from Amsterdam to London yesterday"</em>
+                                </li>
+                                <li>
+                                    <strong>Trajectory</strong> — position, altitude, and speed over time<br>
+                                    <em>"Track aircraft 485A32 on Jan 1, 2026"</em>
+                                </li>
+                                <li>
+                                    <strong>Raw Data</strong> — ADS-B messages for decoding<br>
+                                    <em>"Raw Mode S data for 485A32 yesterday"</em>
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -221,6 +255,30 @@
             <div class="modal-actions">
                 <button id="modal-cancel" class="btn btn-secondary">Cancel</button>
                 <button id="modal-confirm" class="btn btn-primary">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map Modal for Bounds Selection -->
+    <div id="map-modal" class="modal hidden">
+        <div class="modal-content map-modal-content">
+            <h3>Select Region</h3>
+            <div class="map-toolbar">
+                <button id="mode-pan" class="mode-btn active" title="Pan map">
+                    <i class="fa-solid fa-hand"></i>
+                </button>
+                <button id="mode-draw" class="mode-btn" title="Draw region">
+                    <i class="fa-solid fa-crop-simple"></i>
+                </button>
+            </div>
+            <div id="bounds-map"></div>
+            <div class="bounds-display">
+                <span id="bounds-text">No region selected</span>
+            </div>
+            <div class="modal-actions">
+                <button id="map-cancel" class="btn btn-secondary">Cancel</button>
+                <button id="map-clear" class="btn btn-secondary">Clear</button>
+                <button id="map-confirm" class="btn btn-primary" disabled>Apply</button>
             </div>
         </div>
     </div>

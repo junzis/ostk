@@ -130,6 +130,70 @@ code {
     letter-spacing: 0.5px;
 }
 
+/* Query Type Selector */
+.query-type-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    margin-bottom: 1rem;
+}
+
+.query-type-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.625rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: left;
+}
+
+.query-type-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent);
+}
+
+.query-type-btn.active {
+    background: var(--accent-light);
+    border-color: var(--accent);
+}
+
+.query-type-btn .type-icon {
+    font-size: 1.1rem;
+    line-height: 1;
+    color: var(--text-secondary);
+    width: 1.5rem;
+    text-align: center;
+}
+
+.query-type-btn.active .type-icon {
+    color: var(--accent);
+}
+
+.query-type-btn .type-label {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+}
+
+.query-type-btn .type-desc {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-left: auto;
+}
+
+.query-type-btn.active .type-label {
+    color: var(--accent);
+}
+
+/* Filter chips visibility based on query type */
+.chip.filter-hidden {
+    display: none !important;
+}
+
 .filter-chips,
 .preset-chips {
     display: flex;
@@ -380,6 +444,32 @@ code {
     background: var(--error-light);
     border: 1px solid var(--error);
     color: var(--error);
+}
+
+/* Query type examples in welcome message */
+.query-examples {
+    list-style: none;
+    margin-left: 0 !important;
+    padding: 0;
+}
+
+.query-examples li {
+    margin-bottom: 0.6rem !important;
+    padding: 0.5rem 0.6rem;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--primary);
+}
+
+.query-examples li strong {
+    color: var(--text-primary);
+    font-size: 0.85rem;
+}
+
+.query-examples li em {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-style: normal;
 }
 
 .chat-input-container {
@@ -780,6 +870,15 @@ code {
     font-size: 0.75rem;
 }
 
+.code-block .query-hint {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    padding: 0.4rem 0.6rem;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--primary);
+}
+
 /* Chat execution panel */
 .chat-execution {
     margin-top: 0.5rem;
@@ -1007,4 +1106,92 @@ textarea:focus-visible {
     -ms-user-select: text !important;
     user-select: text !important;
     cursor: text;
+}
+
+/* Map Modal for Bounds Selection */
+.map-modal-content {
+    /* Fixed margins (30px each side) regardless of window size */
+    width: calc(100vw - 60px);
+    max-width: 900px;
+    height: calc(100vh - 60px);
+    max-height: 800px;
+    display: flex;
+    flex-direction: column;
+}
+
+.map-hint {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+    flex-shrink: 0;
+}
+
+#bounds-map {
+    flex: 1;
+    min-height: 200px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    margin-bottom: 0.75rem;
+}
+
+.bounds-display {
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+/* Map toolbar */
+.map-toolbar {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.mode-btn {
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    transition: all 0.15s;
+}
+
+.mode-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.mode-btn.active {
+    background: var(--accent-light);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* Leaflet rectangle style */
+#bounds-map .leaflet-interactive.bounds-rectangle {
+    stroke: var(--accent);
+    fill: var(--accent);
+    fill-opacity: 0.15;
+    stroke-width: 2;
+}
+
+/* Corner markers for rectangle resizing */
+#bounds-map .corner-marker {
+    width: 16px !important;
+    height: 16px !important;
+    background: var(--accent);
+    border: 2px solid white;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+#bounds-map .corner-marker:hover {
+    background: var(--accent-hover);
+    transform: scale(1.3);
 }

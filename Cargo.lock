@@ -2723,8 +2723,6 @@ checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
 [[package]]
 name = "opensky"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b81ecec37ca5f8458511a6843c4fac6c96cc101e2549717b800849c328167e9c"
 dependencies = [
  "chrono",
  "configparser",

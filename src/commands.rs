@@ -1,11 +1,11 @@
 //! Tauri commands for OSTK - exposed to JavaScript frontend.
 
-use crate::agent::Agent;
+use crate::agent::{Agent, QueryType};
 use crate::config::LlmConfig;
 use crate::llm::GroqClient;
 use crate::state::{ExecutionResult, SharedState};
 use chrono::{Datelike, Duration, Local, Timelike};
-use opensky::{build_query_preview, QueryParams, Trino};
+use opensky::{build_query_preview_method, Bounds, QueryParams, Trino};
 use serde_json::{json, Value};
 use tauri::State;
 
@@ -44,6 +44,20 @@ pub async fn set_query_param(
         "arrival_airport" => app_state.query_params.arrival_airport = value.as_str().map(String::from),
         "airport" => app_state.query_params.airport = value.as_str().map(String::from),
         "limit" => app_state.query_params.limit = value.as_u64().map(|v| v as u32),
+        "bounds" => {
+            // Bounds is sent as [west, south, east, north] array
+            if value.is_null() {
+                app_state.query_params.bounds = None;
+            } else if let Some(arr) = value.as_array() {
+                if arr.len() == 4 {
+                    let west = arr[0].as_f64().unwrap_or(0.0);
+                    let south = arr[1].as_f64().unwrap_or(0.0);
+                    let east = arr[2].as_f64().unwrap_or(0.0);
+                    let north = arr[3].as_f64().unwrap_or(0.0);
+                    app_state.query_params.bounds = Some(Bounds::new(west, south, east, north));
+                }
+            }
+        }
         _ => return Err(format!("Unknown parameter: {}", key)),
     }
 
@@ -66,6 +80,24 @@ pub async fn clear_query_params(state: State<'_, SharedState>) -> Result<Value, 
     let mut state = state.lock().await;
     state.query_params = QueryParams::new();
     Ok(json!({}))
+}
+
+#[tauri::command]
+pub async fn get_query_type(state: State<'_, SharedState>) -> Result<String, String> {
+    let state = state.lock().await;
+    Ok(state.query_type.to_string())
+}
+
+#[tauri::command]
+pub async fn set_query_type(state: State<'_, SharedState>, query_type: String) -> Result<Value, String> {
+    let mut state = state.lock().await;
+    state.query_type = match query_type.as_str() {
+        "trajectory" => QueryType::Trajectory,
+        "flights" => QueryType::Flights,
+        "rawdata" => QueryType::Rawdata,
+        _ => return Err(format!("Unknown query type: {}", query_type)),
+    };
+    Ok(json!({"query_type": state.query_type.to_string()}))
 }
 
 #[tauri::command]
@@ -110,7 +142,14 @@ pub async fn build_query_preview_cmd(state: State<'_, SharedState>) -> Result<St
         return Ok("# Error: Start time is required".to_string());
     }
 
-    Ok(build_query_preview(&state.query_params))
+    // Use correct method name based on query type
+    let method_name = match state.query_type {
+        QueryType::Trajectory => "history",
+        QueryType::Flights => "flightlist",
+        QueryType::Rawdata => "rawdata",
+    };
+
+    Ok(build_query_preview_method(&state.query_params, method_name))
 }
 
 // ========== Query Execution Commands ==========
@@ -131,24 +170,30 @@ pub async fn execute_query_async(state: State<'_, SharedState>) -> Result<Value,
     app_state.reset_execution();
     app_state.add_log("Starting query execution");
 
-    // Clone params for async execution
+    // Clone params and query type for async execution
     let params = app_state.query_params.clone();
+    let query_type = app_state.query_type;
     drop(app_state);
 
     // Spawn background task
     let state_clone = state.inner().clone();
     tokio::spawn(async move {
-        execute_query_background(state_clone, params).await;
+        execute_query_background(state_clone, params, query_type).await;
     });
 
     Ok(json!({"started": true}))
 }
 
-async fn execute_query_background(state: SharedState, params: QueryParams) {
+async fn execute_query_background(state: SharedState, params: QueryParams, query_type: QueryType) {
     // Log start
     {
         let mut app_state = state.lock().await;
-        app_state.add_log("Starting query execution");
+        let type_str = match query_type {
+            QueryType::Trajectory => "trajectory",
+            QueryType::Flights => "flight list",
+            QueryType::Rawdata => "raw data",
+        };
+        app_state.add_log(&format!("Starting {} query execution", type_str));
     }
 
     // Initialize Trino client
@@ -174,27 +219,39 @@ async fn execute_query_background(state: SharedState, params: QueryParams) {
         app_state.execution.status = "Executing query...".to_string();
     }
 
-    // Execute query with progress callback
-    let state_for_progress = state.clone();
-    let result = trino
-        .history_with_progress(params, move |status| {
-            let state_clone = state_for_progress.clone();
-            // Update progress in state (non-blocking)
-            tokio::spawn(async move {
-                let mut app_state = state_clone.lock().await;
-                app_state.execution.status = format!(
-                    "{} | {:.1}% | {} rows",
-                    status.state, status.progress, status.row_count
-                );
-                if let Some(qid) = &status.query_id {
-                    if app_state.execution.query_id.is_none() {
-                        app_state.execution.query_id = Some(qid.clone());
-                        app_state.add_log(&format!("Query ID: {}", qid));
-                    }
-                }
-            });
-        })
-        .await;
+    // Execute query based on type
+    let result = match query_type {
+        QueryType::Trajectory => {
+            // Use progress callback for trajectory queries
+            let state_for_progress = state.clone();
+            trino
+                .history_with_progress(params, move |status| {
+                    let state_clone = state_for_progress.clone();
+                    tokio::spawn(async move {
+                        let mut app_state = state_clone.lock().await;
+                        app_state.execution.status = format!(
+                            "{} | {:.1}% | {} rows",
+                            status.state, status.progress, status.row_count
+                        );
+                        if let Some(qid) = &status.query_id {
+                            if app_state.execution.query_id.is_none() {
+                                app_state.execution.query_id = Some(qid.clone());
+                                app_state.add_log(&format!("Query ID: {}", qid));
+                            }
+                        }
+                    });
+                })
+                .await
+        }
+        QueryType::Flights => {
+            // Flight list query (no progress callback)
+            trino.flightlist(params).await
+        }
+        QueryType::Rawdata => {
+            // Raw data query (no progress callback)
+            trino.rawdata(params).await
+        }
+    };
 
     // Handle result
     let mut app_state = state.lock().await;
@@ -390,17 +447,22 @@ pub async fn send_message(
 
     // Parse the query
     match agent.parse_query(&user_message).await {
-        Ok((params, _raw_response)) => {
+        Ok((parsed_query, _raw_response)) => {
             let mut app_state = state.lock().await;
 
             // Update query params
-            app_state.query_params = params.clone();
+            app_state.query_params = parsed_query.params.clone();
 
-            // Build query preview - send as "code" type to render Execute button
-            let preview = build_query_preview(&params);
+            // Build query preview with correct method name based on query type
+            let method_name = match parsed_query.query_type {
+                QueryType::Trajectory => "history",
+                QueryType::Flights => "flightlist",
+                QueryType::Rawdata => "rawdata",
+            };
+            let preview = build_query_preview_method(&parsed_query.params, method_name);
 
-            // Add "code" type message - frontend will render with Execute button
-            app_state.add_message("assistant", &preview, "code");
+            // Add "code" type message with hint - frontend renders hint between code and button
+            app_state.add_message_with_hint("assistant", &preview, "code", &parsed_query.hint);
 
             // Store agent info
             app_state.agent_configured = true;
@@ -409,15 +471,17 @@ pub async fn send_message(
 
             Ok(json!({
                 "messages": app_state.messages,
+                "query_type": parsed_query.query_type.to_string(),
+                "hint": parsed_query.hint,
                 "params": json!({
-                    "icao24": params.icao24,
-                    "start": params.start,
-                    "stop": params.stop,
-                    "callsign": params.callsign,
-                    "departure_airport": params.departure_airport,
-                    "arrival_airport": params.arrival_airport,
-                    "airport": params.airport,
-                    "limit": params.limit,
+                    "icao24": parsed_query.params.icao24,
+                    "start": parsed_query.params.start,
+                    "stop": parsed_query.params.stop,
+                    "callsign": parsed_query.params.callsign,
+                    "departure_airport": parsed_query.params.departure_airport,
+                    "arrival_airport": parsed_query.params.arrival_airport,
+                    "airport": parsed_query.params.airport,
+                    "limit": parsed_query.params.limit,
                 }),
             }))
         }

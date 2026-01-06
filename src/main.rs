@@ -21,6 +21,8 @@ fn main() {
             commands::get_query_params,
             commands::set_query_param,
             commands::clear_query_params,
+            commands::get_query_type,
+            commands::set_query_type,
             commands::get_quick_time_preset,
             commands::build_query_preview_cmd,
             // Query execution commands

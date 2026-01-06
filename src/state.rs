@@ -1,5 +1,6 @@
 //! Application state management for OSTK.
 
+use crate::agent::QueryType;
 use opensky::{FlightData, QueryParams};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -11,6 +12,9 @@ pub struct ChatMessage {
     pub content: String,
     #[serde(rename = "type")]
     pub msg_type: String,
+    /// Optional hint text (displayed with code blocks)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hint: Option<String>,
 }
 
 impl ChatMessage {
@@ -19,7 +23,13 @@ impl ChatMessage {
             role: role.into(),
             content: content.into(),
             msg_type: msg_type.into(),
+            hint: None,
         }
+    }
+
+    pub fn with_hint(mut self, hint: impl Into<String>) -> Self {
+        self.hint = Some(hint.into());
+        self
     }
 }
 
@@ -57,6 +67,9 @@ pub enum ExecutionResult {
 
 /// Application state shared across Tauri commands.
 pub struct AppState {
+    /// Current query type (trajectory, flights, rawdata).
+    pub query_type: QueryType,
+
     /// Current query parameters.
     pub query_params: QueryParams,
 
@@ -79,6 +92,7 @@ pub struct AppState {
 impl Default for AppState {
     fn default() -> Self {
         Self {
+            query_type: QueryType::default(),
             query_params: QueryParams::new(),
             messages: Vec::new(),
             last_result: None,
@@ -99,6 +113,11 @@ impl AppState {
     /// Add a chat message.
     pub fn add_message(&mut self, role: &str, content: &str, msg_type: &str) {
         self.messages.push(ChatMessage::new(role, content, msg_type));
+    }
+
+    /// Add a chat message with a hint (for code blocks).
+    pub fn add_message_with_hint(&mut self, role: &str, content: &str, msg_type: &str, hint: &str) {
+        self.messages.push(ChatMessage::new(role, content, msg_type).with_hint(hint));
     }
 
     /// Clear chat messages.
