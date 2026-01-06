@@ -2,6 +2,11 @@
 
 A desktop application for querying historical flight data from the [OpenSky Network](https://opensky-network.org/) Trino database.
 
+<p align="center">
+  <img src="assets/ostk-query-builder.png" width="400" alt="Query Builder">
+  <img src="assets/ostk-ai-chat.png" width="400" alt="AI Chat">
+</p>
+
 ## Features
 
 - **Query Builder** - Visual interface for building flight data queries
