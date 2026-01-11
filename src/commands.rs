@@ -5,7 +5,7 @@ use crate::config::LlmConfig;
 use crate::llm::GroqClient;
 use crate::state::{ExecutionResult, SharedState};
 use chrono::{Datelike, Duration, Local, Timelike};
-use opensky::{build_query_preview_method, Bounds, QueryParams, Trino};
+use opensky::{build_query_preview_method, build_history_query, build_flightlist_query, build_rawdata_query, Bounds, QueryParams, RawTable, Trino};
 use serde_json::{json, Value};
 use tauri::State;
 
@@ -106,11 +106,6 @@ pub fn get_quick_time_preset(preset: String) -> Result<Value, String> {
     let now = now.with_second(0).unwrap().with_nanosecond(0).unwrap();
 
     let (start, stop) = match preset.as_str() {
-        "last_hour" => {
-            let stop = now.with_minute(0).unwrap();
-            let start = stop - Duration::hours(1);
-            (start, stop)
-        }
         "yesterday" => {
             let yesterday = now.date() - Duration::days(1);
             let start = yesterday.and_hms_opt(0, 0, 0).unwrap();
@@ -185,7 +180,14 @@ pub async fn execute_query_async(state: State<'_, SharedState>) -> Result<Value,
 }
 
 async fn execute_query_background(state: SharedState, params: QueryParams, query_type: QueryType) {
-    // Log start
+    // Build SQL query for logging
+    let sql = match query_type {
+        QueryType::Trajectory => build_history_query(&params),
+        QueryType::Flights => build_flightlist_query(&params),
+        QueryType::Rawdata => build_rawdata_query(&params, RawTable::default()),
+    };
+
+    // Log start and SQL
     {
         let mut app_state = state.lock().await;
         let type_str = match query_type {
@@ -194,13 +196,22 @@ async fn execute_query_background(state: SharedState, params: QueryParams, query
             QueryType::Rawdata => "raw data",
         };
         app_state.add_log(&format!("Starting {} query execution", type_str));
+        app_state.add_log("───── SQL Query ─────");
+        // Log each line of SQL separately for better formatting
+        for line in sql.lines() {
+            app_state.add_log(line);
+        }
+        app_state.add_log("─────────────────────");
     }
 
     // Initialize Trino client
     let trino_result = Trino::new().await;
 
     let mut trino = match trino_result {
-        Ok(t) => t,
+        Ok(mut t) => {
+            t.set_source("ostk");
+            t
+        }
         Err(e) => {
             let mut app_state = state.lock().await;
             app_state.add_log(&format!("Connection error: {}", e));
@@ -219,37 +230,43 @@ async fn execute_query_background(state: SharedState, params: QueryParams, query
         app_state.execution.status = "Executing query...".to_string();
     }
 
-    // Execute query based on type
+    // Create progress callback (reused for all query types)
+    let make_progress_callback = |state: SharedState| {
+        move |status: opensky::QueryStatus| {
+            let state_clone = state.clone();
+            tokio::spawn(async move {
+                let mut app_state = state_clone.lock().await;
+                app_state.execution.status = format!(
+                    "{} | {:.1}% | {} rows",
+                    status.state, status.progress, status.row_count
+                );
+                if let Some(qid) = &status.query_id {
+                    if app_state.execution.query_id.is_none() {
+                        app_state.execution.query_id = Some(qid.clone());
+                        app_state.add_log(&format!("Query ID: {}", qid));
+                        app_state.add_log(&format!("Check progress at: https://trino.opensky-network.org/ui/query.html?{}", qid));
+                    }
+                }
+            });
+        }
+    };
+
+    // Execute query based on type (all with progress callback for cancel support)
     let result = match query_type {
         QueryType::Trajectory => {
-            // Use progress callback for trajectory queries
-            let state_for_progress = state.clone();
             trino
-                .history_with_progress(params, move |status| {
-                    let state_clone = state_for_progress.clone();
-                    tokio::spawn(async move {
-                        let mut app_state = state_clone.lock().await;
-                        app_state.execution.status = format!(
-                            "{} | {:.1}% | {} rows",
-                            status.state, status.progress, status.row_count
-                        );
-                        if let Some(qid) = &status.query_id {
-                            if app_state.execution.query_id.is_none() {
-                                app_state.execution.query_id = Some(qid.clone());
-                                app_state.add_log(&format!("Query ID: {}", qid));
-                            }
-                        }
-                    });
-                })
+                .history_with_progress(params, make_progress_callback(state.clone()))
                 .await
         }
         QueryType::Flights => {
-            // Flight list query (no progress callback)
-            trino.flightlist(params).await
+            trino
+                .flightlist_with_progress(params, make_progress_callback(state.clone()))
+                .await
         }
         QueryType::Rawdata => {
-            // Raw data query (no progress callback)
-            trino.rawdata(params).await
+            trino
+                .rawdata_with_progress(params, make_progress_callback(state.clone()))
+                .await
         }
     };
 
@@ -310,7 +327,7 @@ pub async fn get_execution_status(state: State<'_, SharedState>) -> Result<Value
     Ok(json!({
         "is_executing": app_state.execution.is_executing,
         "status": app_state.execution.status,
-        "logs": app_state.execution.logs.iter().rev().take(30).collect::<Vec<_>>(),
+        "logs": app_state.execution.logs.iter().collect::<Vec<_>>(),
         "complete": app_state.execution.result.is_some(),
         "result": result_json,
         "can_cancel": app_state.execution.is_executing && app_state.execution.query_id.is_some(),
@@ -338,6 +355,7 @@ pub async fn cancel_query(state: State<'_, SharedState>) -> Result<Value, String
         // Try to cancel via new Trino connection (best effort)
         match Trino::new().await {
             Ok(mut trino) => {
+                trino.set_source("ostk");
                 match trino.cancel(&qid).await {
                     Ok(_) => app_state.add_log("Trino query cancelled"),
                     Err(e) => app_state.add_log(&format!("Cancel error: {}", e)),

@@ -11,7 +11,7 @@ A desktop application for querying historical flight data from the [OpenSky Netw
 
 - **Query Builder** - Visual interface for building flight data queries
   - Filter by time range, aircraft (ICAO24), callsign, airports
-  - Quick presets: last hour, yesterday, last week
+  - Quick presets: yesterday, last week
   - Inline editing of filter values
 
 - **AI Chat** - Natural language interface for queries

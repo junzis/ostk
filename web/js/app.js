@@ -6,6 +6,7 @@
 // Tauri API helpers
 const { invoke } = window.__TAURI__.core;
 const { save } = window.__TAURI__.dialog;
+const { open: openExternal } = window.__TAURI__.shell;
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', init);
@@ -162,6 +163,17 @@ function setupEventListeners() {
     elements.mapConfirm.addEventListener('click', confirmMapSelection);
     elements.modePan.addEventListener('click', () => setMapMode('pan'));
     elements.modeDraw.addEventListener('click', () => setMapMode('draw'));
+
+    // External links - use Tauri shell.open() to open in default browser
+    document.querySelectorAll('.external-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const url = link.dataset.url;
+            if (url) {
+                openExternal(url);
+            }
+        });
+    });
 }
 
 // ========== Global Execution Lock ==========
@@ -564,7 +576,7 @@ async function executeQuery() {
     // Show execution panel
     elements.executionPanel.classList.remove('hidden', 'complete', 'error', 'downloading');
     elements.executionStatusText.textContent = 'Connecting...';
-    elements.executionLog.textContent = '';
+    elements.executionLog.innerHTML = '';
     elements.cancelBtn.classList.add('hidden');  // Hidden until query ID received
     elements.cancelBtn.disabled = false;  // Re-enable for new query
 
@@ -600,7 +612,8 @@ function startExecutionPolling() {
 
             // Update logs and auto-scroll
             if (status.logs && status.logs.length > 0) {
-                elements.executionLog.textContent = status.logs.join('\n');
+                elements.executionLog.innerHTML = renderLogLines(status.logs);
+                attachLogLinkHandlers(elements.executionLog);
                 elements.executionLog.scrollTop = elements.executionLog.scrollHeight;
                 // Also scroll the page to keep execution panel visible
                 elements.executionPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -668,8 +681,8 @@ function showExecutionError(error) {
     setExecutionLock(false);
 
     // Add error to log
-    const currentLog = elements.executionLog.textContent;
-    elements.executionLog.textContent = currentLog + '\n[ERROR] ' + error;
+    const currentLog = elements.executionLog.innerHTML;
+    elements.executionLog.innerHTML = currentLog + '\n[ERROR] ' + escapeHtml(error);
 
     showToast(error, 'error');
 }
@@ -862,6 +875,40 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Convert URLs in log text to clickable links
+function linkifyLogText(text) {
+    const urlPattern = /(https?:\/\/[^\s<]+)/g;
+    return escapeHtml(text).replace(urlPattern, (url) => {
+        return `<a href="#" class="log-link" data-url="${escapeHtml(url)}">${escapeHtml(url)}</a>`;
+    });
+}
+
+// Render log lines with clickable URLs
+function renderLogLines(logs) {
+    return logs.map(line => linkifyLogText(line)).join('\n');
+}
+
+// Attach click handlers to log links (for opening URLs externally)
+// Uses event delegation on the container for reliability
+function attachLogLinkHandlers(container) {
+    // Use event delegation - attach once to container
+    if (!container.dataset.linkHandlerAttached) {
+        container.dataset.linkHandlerAttached = 'true';
+        container.addEventListener('click', (e) => {
+            const link = e.target.closest('.log-link');
+            if (link) {
+                e.preventDefault();
+                e.stopPropagation();
+                const url = link.dataset.url;
+                if (url) {
+                    console.log('Opening URL:', url);
+                    openExternal(url);
+                }
+            }
+        });
+    }
+}
+
 let chatExecutionInterval = null;
 
 async function executeCodeFromChat(codeBlockId) {
@@ -947,7 +994,7 @@ async function executeCodeFromChat(codeBlockId) {
         if (startResult.error) {
             execPanel.classList.add('error');
             statusText.textContent = 'Error';
-            logEl.textContent = startResult.error;
+            logEl.innerHTML = escapeHtml(startResult.error);
             btn.textContent = 'Execute';
             btn.disabled = false;
             spinner.style.display = 'none';
@@ -965,7 +1012,8 @@ async function executeCodeFromChat(codeBlockId) {
 
                 // Update log
                 if (status.logs && status.logs.length > 0) {
-                    logEl.textContent = status.logs.join('\n');
+                    logEl.innerHTML = renderLogLines(status.logs);
+                    attachLogLinkHandlers(logEl);
                     logEl.scrollTop = logEl.scrollHeight;
                 }
 
@@ -998,7 +1046,7 @@ async function executeCodeFromChat(codeBlockId) {
     } catch (e) {
         execPanel.classList.add('error');
         statusText.textContent = 'Error';
-        logEl.textContent = e.message || e;
+        logEl.innerHTML = escapeHtml(e.message || e);
         btn.textContent = 'Execute';
         btn.disabled = false;
         spinner.style.display = 'none';
@@ -1020,7 +1068,7 @@ function handleChatExecutionResult(execPanel, result) {
         execPanel.classList.add('error');
         execPanel.querySelector('.status-text').textContent = 'Error';
         const logEl = execPanel.querySelector('.execution-log');
-        logEl.textContent += '\n[ERROR] ' + result.error;
+        logEl.innerHTML += '\n[ERROR] ' + escapeHtml(result.error);
         return;
     }
 

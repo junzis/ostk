@@ -549,6 +549,42 @@ code {
     font-weight: 600;
 }
 
+/* Trino access notice */
+.trino-notice {
+    background: #fffbeb;
+    border: 1px solid #f59e0b;
+    border-left: 4px solid #f59e0b;
+    border-radius: var(--radius-sm);
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    font-size: 0.8rem;
+}
+
+.trino-notice strong {
+    color: #b45309;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.trino-notice p {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-secondary);
+}
+
+.trino-notice ol {
+    margin: 0 0 0 1.25rem;
+    padding: 0;
+    color: var(--text-secondary);
+}
+
+.trino-notice li {
+    margin-bottom: 0.25rem;
+}
+
+.trino-notice a {
+    color: var(--accent);
+}
+
 /* Inline form rows */
 .form-row {
     display: flex;
@@ -1106,6 +1142,18 @@ textarea:focus-visible {
     -ms-user-select: text !important;
     user-select: text !important;
     cursor: text;
+}
+
+.execution-log .log-link {
+    color: var(--accent);
+    text-decoration: underline;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}
+
+.execution-log .log-link:hover {
+    color: var(--accent-hover);
+    background: var(--accent-light);
 }
 
 /* Map Modal for Bounds Selection */

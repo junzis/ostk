@@ -90,10 +90,11 @@ impl Agent {
     /// Returns the parsed query with type, hint, and parameters,
     /// along with the raw LLM response for debugging.
     pub async fn parse_query(&self, user_query: &str) -> Result<(ParsedQuery, String), LlmError> {
-        // Build prompt with current UTC time injected
-        let current_utc = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
+        // Build prompt with current LOCAL time injected
+        // Using local time so "yesterday" matches user expectations
+        let current_local = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
         let prompt = PROMPT_TEMPLATE
-            .replace("{current_utc_time}", &current_utc)
+            .replace("{current_time}", &current_local)
             .replace("{user_query}", user_query);
 
         // Call LLM

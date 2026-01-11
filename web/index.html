@@ -58,7 +58,6 @@
 
                     <h4>Quick Presets</h4>
                     <div class="preset-chips">
-                        <button class="chip preset" data-preset="last_hour">Last Hour</button>
                         <button class="chip preset" data-preset="yesterday">Yesterday</button>
                         <button class="chip preset" data-preset="last_week">Last Week</button>
                     </div>
@@ -150,6 +149,15 @@
             <div class="settings-container">
                 <section class="settings-section">
                     <h3>OpenSky Credentials</h3>
+                    <div class="trino-notice">
+                        <strong>⚠️ Trino Access Required</strong>
+                        <p>This app queries OpenSky's Trino database, which requires special access. You must:</p>
+                        <ol>
+                            <li>Have an <a href="#" class="external-link" data-url="https://opensky-network.org/my-opensky/account">OpenSky account</a></li>
+                            <li>Request Trino access via <a href="#" class="external-link" data-url="https://opensky-network.org/my-opensky/request-data">the Trino request page</a></li>
+                            <li>Wait for approval (usually a few business days)</li>
+                        </ol>
+                    </div>
                     <div class="form-row">
                         <label>Username</label>
                         <input type="text" id="opensky-username" placeholder="Your OpenSky username">
@@ -183,7 +191,7 @@
                                 <button type="button" class="toggle-visibility" data-target="groq-api-key">👁</button>
                             </div>
                         </div>
-                        <small class="form-hint">Get your <b>free key</b> at <a href="https://console.groq.com" target="_blank">console.groq.com</a></small>
+                        <small class="form-hint">Get your <b>free key</b> at <a href="#" class="external-link" data-url="https://console.groq.com">console.groq.com</a></small>
                         <div class="form-row">
                             <label>Model</label>
                             <div class="input-with-button">

@@ -1,6 +1,6 @@
 [package]
 name = "ostk"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "OpenSky Toolkit - Desktop app for querying OpenSky Network flight data"
 authors = ["Junzi Sun <git@junzis.com>"]
@@ -11,7 +11,7 @@ keywords = ["opensky", "aviation", "ads-b", "flight-data", "tauri"]
 categories = ["gui", "science"]
 
 [dependencies]
-opensky = "0.2"
+opensky = "0.2.1"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.148"
 tauri = { version = "2.9.5", features = ["devtools"] }
@@ -23,6 +23,7 @@ regex = "1.11"
 configparser = "3"
 thiserror = "2"
 tauri-plugin-dialog = "2.4.2"
+tauri-plugin-shell = "2"
 
 [build-dependencies]
 tauri-build = { version = "2.5.3", features = [] }
