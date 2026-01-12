@@ -101,6 +101,11 @@ jobs:
       contents: write
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for tags
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -110,11 +115,50 @@ jobs:
       - name: List artifacts
         run: ls -la artifacts/
 
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          # Get current and previous tags
+          CURRENT_TAG=${GITHUB_REF#refs/tags/}
+          PREVIOUS_TAG=$(git tag --sort=-creatordate | grep -A1 "^${CURRENT_TAG}$" | tail -1)
+
+          # If no previous tag, use first commit
+          if [ "$PREVIOUS_TAG" = "$CURRENT_TAG" ] || [ -z "$PREVIOUS_TAG" ]; then
+            PREVIOUS_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+
+          echo "Generating notes from $PREVIOUS_TAG to $CURRENT_TAG"
+
+          # Generate changelog from commits
+          CHANGELOG=$(git log ${PREVIOUS_TAG}..${CURRENT_TAG} --pretty=format:"- %s" --reverse | grep -v "^- Merge" || echo "- Initial release")
+
+          # Create release body
+          cat << EOF > release_notes.md
+          ## What's Changed
+
+          $CHANGELOG
+
+          ## Installation
+
+          | Platform | File |
+          |----------|------|
+          | Linux x64 | \`ostk-linux-x64\` |
+          | Windows x64 | \`ostk-windows-x64.exe\` |
+          | macOS Intel | \`OSTK-macos-x64.app.zip\` |
+          | macOS Apple Silicon | \`OSTK-macos-arm64.app.zip\` |
+
+          **Linux:** Make executable with \`chmod +x ostk-linux-x64\`. Requires \`libwebkit2gtk-4.1\`.
+
+          **macOS:** Unzip and move to Applications. Run \`xattr -cr /Applications/OSTK.app\` to remove quarantine.
+
+          **Full Changelog:** https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${CURRENT_TAG}
+          EOF
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: artifacts/*
           draft: false
-          generate_release_notes: true
+          body_path: release_notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

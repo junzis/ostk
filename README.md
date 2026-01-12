@@ -16,7 +16,7 @@ A desktop application for querying historical flight data from the [OpenSky Netw
 
 - **AI Chat** - Natural language interface for queries
   - Ask questions like "Flights from Amsterdam to London yesterday"
-  - Powered by Groq, OpenAI, or local Ollama models
+  - Powered by Groq (free API with fast inference)
   - Automatic query generation and execution
 
 - **Data Export** - Save results in CSV or Parquet format
@@ -66,6 +66,11 @@ sudo apt install libwebkit2gtk-4.1-0
 sudo pacman -S webkit2gtk-4.1
 ```
 
+**NVIDIA + Wayland:** The app automatically detects NVIDIA GPUs on Wayland and applies necessary workarounds. If you still encounter issues, you can manually set:
+```bash
+WEBKIT_DISABLE_DMABUF_RENDERER=1 ./ostk-linux-x64
+```
+
 ### Build from Source
 
 Requirements:
@@ -97,21 +102,11 @@ cargo run --release
 
 ### LLM Provider (for AI Chat)
 
-Choose one of the following:
-
-**Groq (Recommended - Free)**
+**Groq (Free)**
 1. Get a free API key at [console.groq.com](https://console.groq.com)
-2. Go to Settings → LLM Provider → Groq
+2. Go to Settings → LLM Provider
 3. Enter your API key and click "Fetch" to load available models
-
-**OpenAI**
-1. Get an API key at [platform.openai.com](https://platform.openai.com)
-2. Select OpenAI as provider and enter your key
-
-**Ollama (Local)**
-1. Install [Ollama](https://ollama.ai/)
-2. Pull a model: `ollama pull llama3.1:8b`
-3. Select Ollama as provider
+4. Select a model (e.g., `llama-3.3-70b-versatile`)
 
 ## Usage
 
@@ -126,7 +121,7 @@ Choose one of the following:
 
 ### AI Chat
 
-1. Configure an LLM provider in Settings
+1. Configure your Groq API key in Settings
 2. Type natural language queries:
    - "Flights from EHAM to EGLL yesterday"
    - "Get trajectory for aircraft 485A32 on Nov 8, 2025"

@@ -1,6 +1,6 @@
 [package]
 name = "ostk"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 description = "OpenSky Toolkit - Desktop app for querying OpenSky Network flight data"
 authors = ["Junzi Sun <git@junzis.com>"]
